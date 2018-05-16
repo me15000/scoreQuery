@@ -11,6 +11,18 @@ using System.Xml;
 
 namespace scoreQuery.Spider
 {
+    public class WebClientEx : WebClient
+    {
+        public int Timeout { get; set; }
+
+        protected override WebRequest GetWebRequest(Uri address)
+        {
+            var request = base.GetWebRequest(address);
+            request.Timeout = Timeout;
+            return request;
+        }
+    }
+
     public class SchoolsSpider
     {
         const string QuerySchoolsUrl = "https://data-gkcx.eol.cn/soudaxue/queryschool.html?messtype=json&schooltype=&page={0}&size=10";
@@ -75,8 +87,10 @@ namespace scoreQuery.Spider
 
             Console.WriteLine(url);
 
-            using (var wc = new WebClient())
+            using (var wc = new WebClientEx())
             {
+                wc.Timeout = 500;
+
                 byte[] data = wc.DownloadData(url);
 
                 if (data == null)
@@ -320,7 +334,7 @@ namespace scoreQuery.Spider
                 }
             }
 
-            int threads = 1;
+            int threads = 3;
 
             var taskF = new TaskFactory();
 
@@ -368,8 +382,10 @@ namespace scoreQuery.Spider
 
             Console.WriteLine(url);
 
-            using (var wc = new WebClient())
+            using (var wc = new WebClientEx())
             {
+                wc.Timeout = 500;
+
                 byte[] data = wc.DownloadData(url);
 
                 if (data == null)
