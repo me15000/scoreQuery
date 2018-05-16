@@ -233,11 +233,18 @@ namespace scoreQuery.Spider
 
         static Common.DB.IDBHelper db = Common.DB.Factory.CreateDBHelper();
 
-        void SaveDB(ScoreInfo info)
+        bool ExistsDB(ScoreInfo info)
         {
             bool exists = db.Exists("select top 1 1 from [school.score] where schoolid=@0 and provinceid=@1 and examieeid=@2 and batchid=@3 and [year]=@4", info.schoolid, info.provinceid, info.examieeid, info.batchid, info.year);
 
-            if (!exists)
+            return exists;
+        }
+
+        void SaveDB(ScoreInfo info)
+        {
+
+
+            if (!ExistsDB(info))
             {
                 var nvc = new Common.DB.NVCollection();
                 nvc["schoolid"] = info.schoolid;
@@ -313,7 +320,7 @@ namespace scoreQuery.Spider
                 }
             }
 
-            int threads = 5;
+            int threads = 1;
 
             var taskF = new TaskFactory();
 
@@ -351,6 +358,12 @@ namespace scoreQuery.Spider
 
         void RunSchoolScore(int schoolid, string provinceid, string examieeid, string batchid)
         {
+            if (ExistsDB(new ScoreInfo { schoolid = schoolid, provinceid = provinceid, examieeid = examieeid, batchid = batchid }))
+            {
+                Console.WriteLine("exists ");
+                return;
+            }
+
             string url = string.Format(ScoreQueryUrl, schoolid, provinceid, examieeid, batchid);
 
             Console.WriteLine(url);
