@@ -113,6 +113,7 @@ namespace scoreQuery.Spider
             bool hasNext = true;
             int page = 1;
             int pagesize = 10;
+            int pageCount = 0;
 
             int threads = 5;
 
@@ -126,18 +127,23 @@ namespace scoreQuery.Spider
 
                     var task = taskF.StartNew((pageObj) =>
                     {
-                        int pageCount = 0;
 
                         int nowpage = (int)pageObj;
 
-                        if (nowpage < pageCount)
+                        if (pageCount>0)
                         {
-                            hasNext = false;
+                            if (nowpage >= pageCount)
+                            {
+                                hasNext = false;
+                            }
                         }
-                        else
+
+
+                        if (hasNext)
                         {
                             RunSchool(nowpage, pagesize, out pageCount);
                         }
+
 
                     }, page);
 
