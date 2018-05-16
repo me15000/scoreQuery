@@ -230,7 +230,7 @@ namespace scoreQuery.Spider
 
         const string ScoreQueryUrl = "http://gkcx.eol.cn/schoolhtm/scores/provinceScores{0}_{1}_{2}_{3}.xml";//{学校id}_{省份id}_{文理科}_{批次}
 
-
+        //http://gkcx.eol.cn/commonXML/schoolSpecialPoint/schoolSpecialPoint1178_10017_10035.xml
         static Common.DB.IDBHelper db = Common.DB.Factory.CreateDBHelper();
 
         bool ExistsDB(ScoreInfo info)
