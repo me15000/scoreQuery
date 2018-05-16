@@ -1,0 +1,8 @@
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Debug\scoreQuery.Spider.csproj.CoreCompileInputs.cache
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Debug\scoreQuery.Spider.exe.config
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Debug\scoreQuery.Spider.exe
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Debug\scoreQuery.Spider.pdb
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Debug\Newtonsoft.Json.dll
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Debug\scoreQuery.Spider.csproj.CopyComplete
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Debug\scoreQuery.Spider.exe
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Debug\scoreQuery.Spider.pdb
