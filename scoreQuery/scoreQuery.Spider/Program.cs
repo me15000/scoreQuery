@@ -155,7 +155,7 @@ namespace scoreQuery.Spider
 
                 Task.WaitAll(tasks.ToArray());
 
-
+                Console.WriteLine("complete");
 
             } while (hasNext);
 
@@ -279,6 +279,12 @@ namespace scoreQuery.Spider
 
         void RunSchoolScore(int schoolid)
         {
+
+
+
+            List<Task> tasks = new List<Task>();
+
+
             foreach (var pro in Provinces)
             {
                 foreach (var bat in BatchType)
@@ -286,11 +292,61 @@ namespace scoreQuery.Spider
                     foreach (var exa in ExamieeType)
                     {
 
-                        RunSchoolScore(schoolid, pro.Value, exa.Value, bat.Value);
+                        object taskobj = new
+                        {
+                            schoolid = schoolid,
+                            proid = pro.Value,
+                            exaid = exa.Value,
+                            batid = bat.Value
+                        };
 
+                        var task = new Task((obj) =>
+                        {
+                            dynamic dyobj = obj;
+
+                            RunSchoolScore(dyobj.schoolid, dyobj.proid, dyobj.exaid, dyobj.batid);
+
+                        }, taskobj);
+
+                        tasks.Add(task);
                     }
                 }
             }
+
+            int threads = 5;
+
+            var taskF = new TaskFactory();
+
+            bool hasNext = true;
+            int taskn = 0;
+            int taskCount = tasks.Count;
+            do
+            {
+                var taskList = new List<Task>(threads);
+                for (int i = 0; i < threads; i++)
+                {
+                    if (taskn >= taskCount)
+                    {
+                        hasNext = false;
+                        break;
+                    }
+
+                    var task = tasks[taskn];
+
+                    taskList.Add(task);
+
+                    task.Start();
+
+                    taskn++;
+                }
+
+
+                Task.WaitAll(taskList.ToArray());
+
+                Console.WriteLine("complete");
+
+            } while (hasNext);
+
         }
 
         void RunSchoolScore(int schoolid, string provinceid, string examieeid, string batchid)
@@ -360,34 +416,28 @@ namespace scoreQuery.Spider
         {
             bool hasNext = true;
 
-            int threads = 5;
 
             int previd = 0;
-            var taskF = new TaskFactory();
+
 
             do
             {
-                var list = db.GetDataList("select top " + threads + " schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
+                var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
 
-
-                List<Task> tasks = new List<Task>();
                 for (int i = 0; i < list.Count; i++)
                 {
                     var ent = list[i];
-                    var task = taskF.StartNew((schoolidObj) =>
-                    {
-                        int schoolid = Convert.ToInt32(schoolidObj);
 
-                        RunSchoolScore(schoolid);
+                    previd = Convert.ToInt32(ent["schoolid"]);
 
-                    }, Convert.ToInt32(ent["schoolid"]));
+                    RunSchoolScore(previd);
 
-                    tasks.Add(task);
                 }
 
-
-                Task.WaitAll(tasks.ToArray());
-
+                if (list.Count == 0)
+                {
+                    hasNext = false;
+                }
 
 
             } while (hasNext);
