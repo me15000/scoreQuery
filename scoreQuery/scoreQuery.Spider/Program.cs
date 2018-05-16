@@ -325,7 +325,13 @@ namespace scoreQuery.Spider
                         {
                             dynamic dyobj = obj;
 
-                            RunSchoolScore(dyobj.schoolid, dyobj.proid, dyobj.exaid, dyobj.batid);
+                            try
+                            {
+                                RunSchoolScore(dyobj.schoolid, dyobj.proid, dyobj.exaid, dyobj.batid);
+                            }
+                            catch (Exception ex)
+                            {                                
+                            }                            
 
                         }, taskobj);
 
