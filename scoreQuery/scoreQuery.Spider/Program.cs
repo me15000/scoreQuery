@@ -865,9 +865,55 @@ namespace scoreQuery.Spider
 
 
         const string ScoreQueryUrl = "http://gkcx.eol.cn/schoolhtm/scores/provinceScores{0}_{1}_{2}_{3}.xml";//{学校id}_{省份id}_{文理科}_{批次}
+        const string ScoreQueryUrlSpecial = "http://gkcx.eol.cn/commonXML/schoolSpecialPoint/schoolSpecialPoint{0}_{1}_{2}.xml";//{学校id}_{省份id}_{文理科}
 
-        //http://gkcx.eol.cn/commonXML/schoolSpecialPoint/schoolSpecialPoint1178_10017_10035.xml
+        class SpecialScoreInfo
+        {
+            public int schoolid { get; set; }
+            public string provinceid { get; set; }
+            public string examieeid { get; set; }
+            public string specialname { get; set; }
+            public int year { get; set; }
+
+            public string maxfs { get; set; }
+            public string varfs { get; set; }
+            public string minfs { get; set; }
+            public string pc { get; set; }
+            public string stype { get; set; }
+        }
+
+
         static Common.DB.IDBHelper db = Common.DB.Factory.CreateDBHelper();
+
+        bool ExistsDBSpecial(SpecialScoreInfo info)
+        {
+            bool exists = db.Exists("select top 1 1 from [school.special] where schoolid=@0 and provinceid=@1 and examieeid=@2 and specialname=@3 and [year]=@4", info.schoolid, info.provinceid, info.examieeid, info.specialname, info.year);
+
+            return exists;
+        }
+
+        void SaveDBSpecial(SpecialScoreInfo info)
+        {
+            if (ExistsDBSpecial(info))
+            {
+                return;
+            }
+
+            var nvc = new Common.DB.NVCollection();
+            nvc["schoolid"] = info.schoolid;
+            nvc["provinceid"] = info.provinceid;
+            nvc["examieeid"] = info.examieeid;
+            nvc["specialname"] = info.specialname;
+            nvc["year"] = info.year;
+            nvc["maxfs"] = info.maxfs;
+            nvc["varfs"] = info.varfs;
+            nvc["minfs"] = info.minfs;
+            nvc["pc"] = info.pc;
+            nvc["stype"] = info.stype;
+
+            db.ExecuteNoneQuery("insert into [school.special]([schoolid],[provinceid],[examieeid],[specialname],[year],[maxfs],[varfs],[minfs],[pc],[stype]) values(@schoolid,@provinceid,@examieeid,@specialname,@year,@maxfs,@varfs,@minfs,@pc,@stype)", nvc);
+        }
+
 
         bool ExistsDB(ScoreInfo info)
         {
@@ -880,26 +926,28 @@ namespace scoreQuery.Spider
         {
 
 
-            if (!ExistsDB(info))
+            if (ExistsDB(info))
             {
-                var nvc = new Common.DB.NVCollection();
-                nvc["schoolid"] = info.schoolid;
-                nvc["provinceid"] = info.provinceid;
-                nvc["examieeid"] = info.examieeid;
-                nvc["batchid"] = info.batchid;
-                nvc["year"] = info.year;
-                nvc["maxScore"] = info.maxScore;
-                nvc["minScore"] = info.minScore;
-                nvc["avgScore"] = info.avgScore;
-                nvc["ps"] = info.ps;
-                nvc["fc"] = info.fc;
-                nvc["rb"] = info.rb;
-
-                nvc["rs"] = info.rs;
-                nvc["ph"] = info.ph;
-
-                db.ExecuteNoneQuery("insert into [school.score]([schoolid],[provinceid],[examieeid],[batchid],[year],[maxScore],[minScore],[avgScore],[ps],[fc],[rb],[rs],[ph]) values(@schoolid,@provinceid,@examieeid,@batchid,@year,@maxScore,@minScore,@avgScore,@ps,@fc,@rb,@rs,@ph)", nvc);
+                return;
             }
+            var nvc = new Common.DB.NVCollection();
+            nvc["schoolid"] = info.schoolid;
+            nvc["provinceid"] = info.provinceid;
+            nvc["examieeid"] = info.examieeid;
+            nvc["batchid"] = info.batchid;
+            nvc["year"] = info.year;
+            nvc["maxScore"] = info.maxScore;
+            nvc["minScore"] = info.minScore;
+            nvc["avgScore"] = info.avgScore;
+            nvc["ps"] = info.ps;
+            nvc["fc"] = info.fc;
+            nvc["rb"] = info.rb;
+
+            nvc["rs"] = info.rs;
+            nvc["ph"] = info.ph;
+
+            db.ExecuteNoneQuery("insert into [school.score]([schoolid],[provinceid],[examieeid],[batchid],[year],[maxScore],[minScore],[avgScore],[ps],[fc],[rb],[rs],[ph]) values(@schoolid,@provinceid,@examieeid,@batchid,@year,@maxScore,@minScore,@avgScore,@ps,@fc,@rb,@rs,@ph)", nvc);
+
         }
 
         class ScoreInfo
@@ -932,14 +980,14 @@ namespace scoreQuery.Spider
             {
                 Task.Delay(5000).Wait();
 
-                foreach (var bat in BatchType)
+                foreach (var exa in ExamieeType)
                 {
                     Task.Delay(5000).Wait();
 
-                    foreach (var exa in ExamieeType)
-                    {
-                        //Task.Delay(1000).Wait();
 
+
+                    foreach (var bat in BatchType)
+                    {
 
                         dynamic taskobj = new
                         {
@@ -1008,6 +1056,122 @@ namespace scoreQuery.Spider
 
             } while (hasNext);
             */
+        }
+
+        void RunSchoolSpecialScore(int schoolid)
+        {
+
+            foreach (var pro in Provinces)
+            {
+                Task.Delay(5000).Wait();
+
+                foreach (var exa in ExamieeType)
+                {
+                    dynamic taskobj = new
+                    {
+                        schoolid = schoolid,
+                        proid = pro.Value,
+                        exaid = exa.Value
+                    };
+
+                    RunSchoolSpecialScore(taskobj.schoolid, taskobj.proid, taskobj.exaid);
+
+                }
+            }
+        }
+
+        void RunSchoolSpecialScore(int schoolid, string provinceid, string examieeid)
+        {
+            if (ExistsDBSpecial(new SpecialScoreInfo { schoolid = schoolid, provinceid = provinceid, examieeid = examieeid }))
+            {
+                return;
+            }
+
+            string url = string.Format(ScoreQueryUrlSpecial, schoolid, provinceid, examieeid);
+
+
+            Console.WriteLine(url);
+
+
+            int loopTimes = 0;
+            loop:
+            loopTimes++;
+
+
+
+            string xmlContent = HttpUtil.HttpGet(url);
+            if (string.IsNullOrEmpty(xmlContent))
+            {
+                return;
+            }
+
+            var xmldoc = new XmlDocument();
+
+            try
+            {
+                xmldoc.LoadXml(xmlContent);
+
+            }
+            catch (Exception ex)
+            {
+
+
+                if (loopTimes < 3)
+                {
+
+                    Console.WriteLine("xml load error goto loop " + loopTimes);
+                    goto loop;
+
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (xmldoc == null)
+            {
+                return;
+            }
+
+            var nodes = xmldoc.SelectNodes("//areapiont");
+
+
+            if (nodes != null)
+            {
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    var node = nodes[i];
+                    int year = int.Parse(node.SelectSingleNode("year").InnerText);
+                    string specialname = node.SelectSingleNode("specialname").InnerText;
+                    string maxfs = node.SelectSingleNode("maxfs").InnerText;
+                    string varfs = node.SelectSingleNode("varfs").InnerText;
+                    string minfs = node.SelectSingleNode("minfs").InnerText;
+                    string pc = node.SelectSingleNode("pc").InnerText;
+                    string stype = node.SelectSingleNode("stype").InnerText;
+
+
+                    var ent = new SpecialScoreInfo()
+                    {
+                        year = year,
+
+                        maxfs = maxfs,
+                        minfs = minfs,
+                        pc = pc,
+                        specialname = specialname,
+                        stype = stype,
+                        varfs = varfs,
+
+                        examieeid = examieeid,
+                        provinceid = provinceid,
+                        schoolid = schoolid
+                    };
+
+                    SaveDBSpecial(ent);
+                }
+
+            }
+
         }
 
         void RunSchoolScore(int schoolid, string provinceid, string examieeid, string batchid)
@@ -1123,6 +1287,7 @@ namespace scoreQuery.Spider
 
                     previd = Convert.ToInt32(ent["schoolid"]);
 
+                    RunSchoolSpecialScore(previd);
                     RunSchoolScore(previd);
 
                 }

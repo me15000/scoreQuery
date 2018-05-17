@@ -6,3 +6,4 @@ D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.csp
 D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.csproj.CopyComplete
 D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.exe
 D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.pdb
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.csprojResolveAssemblyReference.cache
