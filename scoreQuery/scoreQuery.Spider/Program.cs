@@ -548,7 +548,8 @@ namespace scoreQuery.Spider
 
     public class HttpUtil
     {
-        public static string HttpGet(string Url, string encoding = "utf-8")
+        /*
+        public static string HttpClientGet(string Url, string encoding = "utf-8")
         {
             Uri uri = new Uri(Url);
 
@@ -562,8 +563,8 @@ namespace scoreQuery.Spider
 
 
             HttpClient client = new HttpClient();
-            client.ReceiveTimeout = 500;
-            client.SendTimeout = 500;
+            client.ReceiveTimeout = 3000;
+            client.SendTimeout = 3000;
 
             int loopTimes = 0;
             loop:
@@ -597,13 +598,21 @@ namespace scoreQuery.Spider
             {
                 return null;
             }
+        }
+        */
 
-            /*
+        
+
+        public static string HttpGet(string Url, string encoding = "utf-8")
+        {
+
+         
+
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
             request.Method = "GET";
             request.ContentType = "text/html;charset=" + encoding;
-            request.Timeout = 300;
-
+            request.Timeout = 3000;
+            request.AllowAutoRedirect = false;
             request.UserAgent = @"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.139 Safari/537.36";
 
             using (var response = (HttpWebResponse)request.GetResponse())
@@ -639,7 +648,7 @@ namespace scoreQuery.Spider
                 return content.Replace(oldValue, "&nbsp;");
             }
 
-               */
+
         }
 
     }
@@ -863,9 +872,8 @@ namespace scoreQuery.Spider
             {"浙江","10018" }
         };
 
-
-        const string ScoreQueryUrl = "http://gkcx.eol.cn/schoolhtm/scores/provinceScores{0}_{1}_{2}_{3}.xml";//{学校id}_{省份id}_{文理科}_{批次}
-        const string ScoreQueryUrlSpecial = "http://gkcx.eol.cn/commonXML/schoolSpecialPoint/schoolSpecialPoint{0}_{1}_{2}.xml";//{学校id}_{省份id}_{文理科}
+        const string ScoreQueryUrl = "https://gkcx.eol.cn/schoolhtm/scores/provinceScores{0}_{1}_{2}_{3}.xml";//{学校id}_{省份id}_{文理科}_{批次}
+        const string ScoreQueryUrlSpecial = "https://gkcx.eol.cn/commonXML/schoolSpecialPoint/schoolSpecialPoint{0}_{1}_{2}.xml";//{学校id}_{省份id}_{文理科}
 
         class SpecialScoreInfo
         {
@@ -968,7 +976,7 @@ namespace scoreQuery.Spider
             public string ph { get; set; }
         }
 
-        void RunSchoolScore(int schoolid)
+        void RunSchoolScore(int schoolid, string provinceid)
         {
 
 
@@ -976,50 +984,48 @@ namespace scoreQuery.Spider
             //List<Task> tasks = new List<Task>();
 
 
-            foreach (var pro in Provinces)
+
+
+            foreach (var exa in ExamieeType)
             {
-                Task.Delay(5000).Wait();
+                Task.Delay(2000).Wait();
 
-                foreach (var exa in ExamieeType)
+
+
+                foreach (var bat in BatchType)
                 {
-                    Task.Delay(5000).Wait();
 
-
-
-                    foreach (var bat in BatchType)
+                    dynamic taskobj = new
                     {
+                        schoolid = schoolid,
+                        proid = provinceid,
+                        exaid = exa.Value,
+                        batid = bat.Value
+                    };
 
-                        dynamic taskobj = new
+                    RunSchoolScore(taskobj.schoolid, taskobj.proid, taskobj.exaid, taskobj.batid);
+
+                    /*
+                    var task = new Task((obj) =>
+                    {
+                        dynamic dyobj = obj;
+
+                        try
                         {
-                            schoolid = schoolid,
-                            proid = pro.Value,
-                            exaid = exa.Value,
-                            batid = bat.Value
-                        };
-
-                        RunSchoolScore(taskobj.schoolid, taskobj.proid, taskobj.exaid, taskobj.batid);
-
-                        /*
-                        var task = new Task((obj) =>
+                            RunSchoolScore(dyobj.schoolid, dyobj.proid, dyobj.exaid, dyobj.batid);
+                        }
+                        catch (Exception ex)
                         {
-                            dynamic dyobj = obj;
+                            Console.WriteLine(ex.ToString());
+                        }
 
-                            try
-                            {
-                                RunSchoolScore(dyobj.schoolid, dyobj.proid, dyobj.exaid, dyobj.batid);
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine(ex.ToString());
-                            }
+                    }, taskobj);
 
-                        }, taskobj);
-
-                        tasks.Add(task);
-                        */
-                    }
+                    tasks.Add(task);
+                    */
                 }
             }
+
 
             /*
             int threads = 3;
@@ -1058,31 +1064,28 @@ namespace scoreQuery.Spider
             */
         }
 
-        void RunSchoolSpecialScore(int schoolid)
+        void RunSchoolSpecialScore(int schoolid, string provinceid)
         {
-
-            foreach (var pro in Provinces)
+            foreach (var exa in ExamieeType)
             {
-                Task.Delay(5000).Wait();
+                Task.Delay(100).Wait();
 
-                foreach (var exa in ExamieeType)
+                dynamic taskobj = new
                 {
-                    dynamic taskobj = new
-                    {
-                        schoolid = schoolid,
-                        proid = pro.Value,
-                        exaid = exa.Value
-                    };
+                    schoolid = schoolid,
+                    proid = provinceid,
+                    exaid = exa.Value
+                };
 
-                    RunSchoolSpecialScore(taskobj.schoolid, taskobj.proid, taskobj.exaid);
+                RunSchoolSpecialScore(taskobj.schoolid, taskobj.proid, taskobj.exaid);
 
-                }
             }
+
         }
 
         void RunSchoolSpecialScore(int schoolid, string provinceid, string examieeid)
         {
-           
+
 
             string url = string.Format(ScoreQueryUrlSpecial, schoolid, provinceid, examieeid);
 
@@ -1276,15 +1279,28 @@ namespace scoreQuery.Spider
             bool hasNext = true;
             do
             {
-                var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
+                var list = db.GetDataList("select top 5 schoolid,province from [school.data] where schoolid>@0 order by schoolid asc", previd);
 
                 for (int i = 0; i < list.Count; i++)
                 {
                     var ent = list[i];
 
                     previd = Convert.ToInt32(ent["schoolid"]);
+                    string province = ent["province"] as string ?? string.Empty;
+                    if (string.IsNullOrEmpty(province))
+                    {
+                        continue;
+                    }
 
-                    RunSchoolScore(previd);
+                    if (!Provinces.ContainsKey(province))
+                    {
+                        continue;
+                    }
+
+                    string provinceid = Provinces[province];
+
+
+                    RunSchoolScore(previd, provinceid);
 
                 }
 
@@ -1348,13 +1364,14 @@ namespace scoreQuery.Spider
 
         public void RunSchoolsScoresSpecial()
         {
-
+            /*province
+山西*/
 
             int previd = 0;
             bool hasNext = true;
             do
             {
-                var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
+                var list = db.GetDataList("select top 5 schoolid,province from [school.data] where schoolid>@0 order by schoolid asc", previd);
 
                 for (int i = 0; i < list.Count; i++)
                 {
@@ -1362,7 +1379,20 @@ namespace scoreQuery.Spider
 
                     previd = Convert.ToInt32(ent["schoolid"]);
 
-                    RunSchoolSpecialScore(previd);
+                    string province = ent["province"] as string ?? string.Empty;
+                    if (string.IsNullOrEmpty(province))
+                    {
+                        continue;
+                    }
+
+                    if (!Provinces.ContainsKey(province))
+                    {
+                        continue;
+                    }
+
+                    string provinceid = Provinces[province];
+
+                    RunSchoolSpecialScore(previd, provinceid);
 
                 }
 
