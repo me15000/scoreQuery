@@ -930,10 +930,16 @@ namespace scoreQuery.Spider
 
             foreach (var pro in Provinces)
             {
+                Task.Delay(5000).Wait();
+
                 foreach (var bat in BatchType)
                 {
+                    Task.Delay(5000).Wait();
+
                     foreach (var exa in ExamieeType)
                     {
+                        //Task.Delay(1000).Wait();
+
 
                         dynamic taskobj = new
                         {
@@ -1021,6 +1027,8 @@ namespace scoreQuery.Spider
             loop:
             loopTimes++;
 
+
+
             string xmlContent = HttpUtil.HttpGet(url);
             if (string.IsNullOrEmpty(xmlContent))
             {
@@ -1101,12 +1109,10 @@ namespace scoreQuery.Spider
 
         public void RunSchoolsScores()
         {
-            bool hasNext = true;
 
 
             int previd = 0;
-
-
+            bool hasNext = true;
             do
             {
                 var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
@@ -1123,12 +1129,60 @@ namespace scoreQuery.Spider
 
                 if (list.Count == 0)
                 {
+
+                    Console.WriteLine("complete");
+
                     hasNext = false;
                 }
 
-
             } while (hasNext);
 
+            /*
+            var timer = new System.Timers.Timer();
+            timer.Interval = 60 * 10;
+            timer.Enabled = true;
+            timer.AutoReset = false;
+            bool isruning = false;
+
+            timer.Elapsed += new System.Timers.ElapsedEventHandler((obj, e) =>
+            {
+                Console.WriteLine("timer.Elapsed");
+
+                if (isruning)
+                {
+                    return;
+                }
+
+                isruning = true;
+
+                var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var ent = list[i];
+
+                    previd = Convert.ToInt32(ent["schoolid"]);
+
+                    RunSchoolScore(previd);
+
+                }
+
+                if (list.Count == 0)
+                {
+                    timer.Stop();
+
+                    Console.WriteLine("complete");
+                }
+
+                isruning = false;
+            });
+
+
+
+            timer.Start();
+
+            Console.Read();
+            */
         }
     }
 
