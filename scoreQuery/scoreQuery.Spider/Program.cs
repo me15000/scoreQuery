@@ -1082,10 +1082,7 @@ namespace scoreQuery.Spider
 
         void RunSchoolSpecialScore(int schoolid, string provinceid, string examieeid)
         {
-            if (ExistsDBSpecial(new SpecialScoreInfo { schoolid = schoolid, provinceid = provinceid, examieeid = examieeid }))
-            {
-                return;
-            }
+           
 
             string url = string.Format(ScoreQueryUrlSpecial, schoolid, provinceid, examieeid);
 
