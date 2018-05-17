@@ -1098,6 +1098,9 @@ namespace scoreQuery.Spider
 
         }
 
+
+        static System.Text.RegularExpressions.Regex Reg_Space = new System.Text.RegularExpressions.Regex(@"\s+");
+
         void RunSchoolSpecialScore(int schoolid, string provinceid, string examieeid)
         {
 
@@ -1158,13 +1161,14 @@ namespace scoreQuery.Spider
                 {
                     var node = nodes[i];
                     int year = int.Parse(node.SelectSingleNode("year").InnerText);
-                    string specialname = node.SelectSingleNode("specialname").InnerText;
+                    string specialname = node.SelectSingleNode("specialname").InnerText.Trim();
                     string maxfs = node.SelectSingleNode("maxfs").InnerText;
                     string varfs = node.SelectSingleNode("varfs").InnerText;
                     string minfs = node.SelectSingleNode("minfs").InnerText;
                     string pc = node.SelectSingleNode("pc").InnerText;
                     string stype = node.SelectSingleNode("stype").InnerText;
 
+                    specialname = Reg_Space.Replace(specialname, string.Empty);
 
                     var ent = new SpecialScoreInfo()
                     {
