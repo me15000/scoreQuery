@@ -1284,8 +1284,85 @@ namespace scoreQuery.Spider
 
                     previd = Convert.ToInt32(ent["schoolid"]);
 
-                    RunSchoolSpecialScore(previd);
                     RunSchoolScore(previd);
+
+                }
+
+                if (list.Count == 0)
+                {
+
+                    Console.WriteLine("complete");
+
+                    hasNext = false;
+                }
+
+            } while (hasNext);
+
+            /*
+            var timer = new System.Timers.Timer();
+            timer.Interval = 60 * 10;
+            timer.Enabled = true;
+            timer.AutoReset = false;
+            bool isruning = false;
+
+            timer.Elapsed += new System.Timers.ElapsedEventHandler((obj, e) =>
+            {
+                Console.WriteLine("timer.Elapsed");
+
+                if (isruning)
+                {
+                    return;
+                }
+
+                isruning = true;
+
+                var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var ent = list[i];
+
+                    previd = Convert.ToInt32(ent["schoolid"]);
+
+                    RunSchoolScore(previd);
+
+                }
+
+                if (list.Count == 0)
+                {
+                    timer.Stop();
+
+                    Console.WriteLine("complete");
+                }
+
+                isruning = false;
+            });
+
+
+
+            timer.Start();
+
+            Console.Read();
+            */
+        }
+
+        public void RunSchoolsScoresSpecial()
+        {
+
+
+            int previd = 0;
+            bool hasNext = true;
+            do
+            {
+                var list = db.GetDataList("select top 5 schoolid from [school.data] where schoolid>@0 order by schoolid asc", previd);
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var ent = list[i];
+
+                    previd = Convert.ToInt32(ent["schoolid"]);
+
+                    RunSchoolSpecialScore(previd);
 
                 }
 
@@ -1368,6 +1445,10 @@ namespace scoreQuery.Spider
 
                 case "ss":
                     new SchoolsScoreSpider().RunSchoolsScores();
+                    break;
+
+                case "sss":
+                    new SchoolsScoreSpider().RunSchoolsScoresSpecial();
                     break;
 
                 default:
