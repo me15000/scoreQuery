@@ -1021,6 +1021,11 @@ namespace scoreQuery.Spider
 
                         foreach (var pro in Provinces)
                         {
+                            if (pro.Value.Equals(provinceid))
+                            {
+                                continue;
+                            }
+
                             dynamic taskobj = new
                             {
                                 schoolid = schoolid,
