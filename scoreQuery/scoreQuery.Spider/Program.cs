@@ -995,49 +995,45 @@ namespace scoreQuery.Spider
         {
 
 
-
-            //List<Task> tasks = new List<Task>();
-
-
-
-
             foreach (var exa in ExamieeType)
             {
                 Task.Delay(2000).Wait();
 
-
-
                 foreach (var bat in BatchType)
                 {
-
-                    dynamic taskobj = new
+                    bool succ = false;
                     {
-                        schoolid = schoolid,
-                        proid = provinceid,
-                        exaid = exa.Value,
-                        batid = bat.Value
-                    };
 
-                    RunSchoolScore(taskobj.schoolid, taskobj.proid, taskobj.exaid, taskobj.batid);
+                        dynamic taskobj = new
+                        {
+                            schoolid = schoolid,
+                            proid = provinceid,
+                            exaid = exa.Value,
+                            batid = bat.Value
+                        };
 
-                    /*
-                    var task = new Task((obj) =>
+                        succ = RunSchoolScore(taskobj.schoolid, taskobj.proid, taskobj.exaid, taskobj.batid);
+                    }
+
+
+                    if (succ)
                     {
-                        dynamic dyobj = obj;
 
-                        try
+                        foreach (var pro in Provinces)
                         {
-                            RunSchoolScore(dyobj.schoolid, dyobj.proid, dyobj.exaid, dyobj.batid);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine(ex.ToString());
-                        }
+                            dynamic taskobj = new
+                            {
+                                schoolid = schoolid,
+                                proid = pro.Value,
+                                exaid = exa.Value,
+                                batid = bat.Value
+                            };
 
-                    }, taskobj);
-
-                    tasks.Add(task);
-                    */
+                            RunSchoolScore(taskobj.schoolid, taskobj.proid, taskobj.exaid, taskobj.batid);
+                        }
+                    }
+                  
+                    
                 }
             }
 
@@ -1079,29 +1075,63 @@ namespace scoreQuery.Spider
             */
         }
 
-        void RunSchoolSpecialScore(int schoolid, string provinceid)
+        void RunSchoolSpecialScore(int schoolid, string provinceid = null)
         {
+
+
             foreach (var exa in ExamieeType)
             {
                 Task.Delay(100).Wait();
 
-                dynamic taskobj = new
-                {
-                    schoolid = schoolid,
-                    proid = provinceid,
-                    exaid = exa.Value
-                };
+                bool succ = false;
 
-                RunSchoolSpecialScore(taskobj.schoolid, taskobj.proid, taskobj.exaid);
+                {
+                    dynamic taskobj = new
+                    {
+                        schoolid = schoolid,
+                        proid = provinceid,
+                        exaid = exa.Value
+                    };
+
+
+
+                    succ = RunSchoolSpecialScore(taskobj.schoolid, taskobj.proid, taskobj.exaid);
+                }
+
+
+                if (succ)
+                {
+                    foreach (var pro in Provinces)
+                    {
+                        if (pro.Value.Equals(provinceid))
+                        {
+                            continue;
+                        }
+
+                        dynamic taskobj = new
+                        {
+                            schoolid = schoolid,
+                            proid = pro.Value,
+                            exaid = exa.Value
+                        };
+
+                        RunSchoolSpecialScore(taskobj.schoolid, taskobj.proid, taskobj.exaid);
+                    }
+                }
+
 
             }
+
+
+
+
 
         }
 
 
         static System.Text.RegularExpressions.Regex Reg_Space = new System.Text.RegularExpressions.Regex(@"\s+");
 
-        void RunSchoolSpecialScore(int schoolid, string provinceid, string examieeid)
+        bool RunSchoolSpecialScore(int schoolid, string provinceid, string examieeid)
         {
 
 
@@ -1120,7 +1150,7 @@ namespace scoreQuery.Spider
             string xmlContent = HttpUtil.HttpGet(url);
             if (string.IsNullOrEmpty(xmlContent))
             {
-                return;
+                return false;
             }
 
             var xmldoc = new XmlDocument();
@@ -1143,13 +1173,13 @@ namespace scoreQuery.Spider
                 }
                 else
                 {
-                    return;
+                    return false;
                 }
             }
 
             if (xmldoc == null)
             {
-                return;
+                return false;
             }
 
             var nodes = xmldoc.SelectNodes("//areapiont");
@@ -1190,15 +1220,15 @@ namespace scoreQuery.Spider
                 }
 
             }
-
+            return true;
         }
 
-        void RunSchoolScore(int schoolid, string provinceid, string examieeid, string batchid)
+        bool RunSchoolScore(int schoolid, string provinceid, string examieeid, string batchid)
         {
             if (ExistsDB(new ScoreInfo { schoolid = schoolid, provinceid = provinceid, examieeid = examieeid, batchid = batchid }))
             {
                 Console.WriteLine("exists ");
-                return;
+                return false;
             }
 
             string url = string.Format(ScoreQueryUrl, schoolid, provinceid, examieeid, batchid);
@@ -1215,7 +1245,7 @@ namespace scoreQuery.Spider
             string xmlContent = HttpUtil.HttpGet(url);
             if (string.IsNullOrEmpty(xmlContent))
             {
-                return;
+                return false;
             }
 
             var xmldoc = new XmlDocument();
@@ -1238,13 +1268,13 @@ namespace scoreQuery.Spider
                 }
                 else
                 {
-                    return;
+                    return false;
                 }
             }
 
             if (xmldoc == null)
             {
-                return;
+                return false;
             }
 
             var nodes = xmldoc.SelectNodes("//score");
@@ -1286,7 +1316,7 @@ namespace scoreQuery.Spider
                 }
             }
 
-
+            return true;
 
         }
 
