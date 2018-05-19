@@ -1080,7 +1080,7 @@ namespace scoreQuery.Spider
             */
         }
 
-        void RunSchoolSpecialScore(int schoolid, string provinceid = null)
+        void RunSchoolSpecialScore(int schoolid, string provinceid)
         {
 
 
@@ -1230,11 +1230,11 @@ namespace scoreQuery.Spider
 
         bool RunSchoolScore(int schoolid, string provinceid, string examieeid, string batchid)
         {
-            if (ExistsDB(new ScoreInfo { schoolid = schoolid, provinceid = provinceid, examieeid = examieeid, batchid = batchid }))
-            {
-                Console.WriteLine("exists ");
-                return false;
-            }
+            //if (ExistsDB(new ScoreInfo { schoolid = schoolid, provinceid = provinceid, examieeid = examieeid, batchid = batchid }))
+            //{
+            //    Console.WriteLine("exists ");
+            //    return false;
+            //}
 
             string url = string.Format(ScoreQueryUrl, schoolid, provinceid, examieeid, batchid);
 
