@@ -1,0 +1,6 @@
+D:\git\scoreQuery\scoreQuery\TestQ\obj\Release\TestQ.csprojResolveAssemblyReference.cache
+D:\git\scoreQuery\scoreQuery\TestQ\obj\Release\TestQ.csproj.CoreCompileInputs.cache
+D:\git\scoreQuery\scoreQuery\TestQ\bin\Release\TestQ.exe
+D:\git\scoreQuery\scoreQuery\TestQ\bin\Release\TestQ.pdb
+D:\git\scoreQuery\scoreQuery\TestQ\obj\Release\TestQ.exe
+D:\git\scoreQuery\scoreQuery\TestQ\obj\Release\TestQ.pdb

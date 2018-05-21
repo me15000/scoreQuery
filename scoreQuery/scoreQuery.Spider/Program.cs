@@ -691,6 +691,11 @@ namespace scoreQuery.Spider
             {
                 Console.WriteLine(info["schoolid"]);
 
+                foreach (var item in info)
+                {
+                    Console.WriteLine("key:" + item.Key + ",val:" + item.Value);
+                }
+
                 var nvc = new Common.DB.NVCollection();
                 nvc["schoolid"] = Convert.ToInt32(info["schoolid"]);
                 nvc["schoolname"] = info["schoolname"] is JArray ? string.Empty : info["schoolname"];
@@ -1037,8 +1042,8 @@ namespace scoreQuery.Spider
                             RunSchoolScore(taskobj.schoolid, taskobj.proid, taskobj.exaid, taskobj.batid);
                         }
                     }
-                  
-                    
+
+
                 }
             }
 

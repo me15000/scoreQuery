@@ -26,6 +26,8 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "web", "..\..\WXRedirect\web
 		SlnRelativePath = "..\..\WXRedirect\web\"
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestQ", "TestQ\TestQ.csproj", "{8A893F0D-AE47-484D-9DF0-83D7CC233F49}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{8AA45BCC-6DE5-4C59-ADBB-3FB097B18453}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8AA45BCC-6DE5-4C59-ADBB-3FB097B18453}.Release|Any CPU.ActiveCfg = Debug|Any CPU
 		{8AA45BCC-6DE5-4C59-ADBB-3FB097B18453}.Release|Any CPU.Build.0 = Debug|Any CPU
+		{8A893F0D-AE47-484D-9DF0-83D7CC233F49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A893F0D-AE47-484D-9DF0-83D7CC233F49}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A893F0D-AE47-484D-9DF0-83D7CC233F49}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A893F0D-AE47-484D-9DF0-83D7CC233F49}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
