@@ -1584,7 +1584,7 @@ namespace scoreQuery.Spider
             int sid = 0;
             if (sidobj == null || sidobj == DBNull.Value)
             {
-                sidobj =  db.ExecuteScalar<object>("insert into [special.data](name) values(@0);select @@IDENTITY;", name);
+                sidobj = db.ExecuteScalar<object>("insert into [special.data](name) values(@0);select @@IDENTITY;", name);
 
                 sid = Convert.ToInt32(sidobj);
             }
@@ -1630,6 +1630,112 @@ namespace scoreQuery.Spider
             }
         }
 
+
+        Regex reg_item_key = new Regex(@"/(?<val>\d+)\.htm");
+        void SaveDBArticle(int schoolid, string type, string link,string title, DateTime date)
+        {
+            Console.WriteLine(link);
+
+            string pk = null;
+            var match = reg_item_key.Match(link);
+            if (!match.Success)
+            {
+                return;
+            }
+
+            pk = match.Groups["val"].Value;
+
+            string content = null;
+
+            using (var wc = new WebClient())
+            {
+                byte[] data = wc.DownloadData(link);
+
+
+                string html = Encoding.GetEncoding("utf-8").GetString(data);
+
+                html = ReplaceItemContent(html);
+
+
+                var doc = new HtmlAgilityPack.HtmlDocument();
+
+                doc.LoadHtml(html);
+
+
+                var contNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"content news\"]");
+
+                if (contNode!=null)
+                {
+                    content = contNode.InnerHtml;
+                }
+            }
+
+            if (string.IsNullOrEmpty(content))
+            {
+                return;
+            }
+
+
+            if (!db.Exists("select top 1 1 from [school.article] where [key]=@0", pk))
+            {
+                var nvc = new Common.DB.NVCollection();
+                nvc["schoolid"] = schoolid;
+                nvc["type"] = type;
+                nvc["year"] = date.Year;
+                nvc["data"] = content;
+                nvc["title"] = title;
+                nvc["key"] = pk;
+
+                db.ExecuteNoneQuery("insert into [school.article](schoolid,year,type,data,title,[key]) values(@schoolid,@year,@type,@data,@title,@key)", nvc);
+            }
+        }
+
+        void SaveArticle(int schoolid, string link, string type)
+        {
+
+            using (var wc = new WebClient())
+            {
+                byte[] data = wc.DownloadData(link);
+
+                string html = Encoding.GetEncoding("utf-8").GetString(data);
+
+                html = ReplaceItemContent(html);
+
+
+                var doc = new HtmlAgilityPack.HtmlDocument();
+
+                doc.LoadHtml(html);
+
+
+                var lis = doc.DocumentNode.SelectNodes("//div[@class=\"content news\"]/ul/li");
+
+                if (lis != null)
+                {
+                    for (int i = 0; i < lis.Count; i++)
+                    {
+                        var node = lis[i];
+
+                        var anode = node.SelectSingleNode("a");
+                        var dnode = node.SelectSingleNode("span");
+
+                        if (anode == null || dnode == null)
+                        {
+                            continue;
+                        }
+
+                        string title = anode.InnerText.Trim();
+                        string alink = "https://gkcx.eol.cn" + anode.Attributes["href"].Value;
+
+                        DateTime date = DateTime.Parse(dnode.InnerText.Trim());
+
+
+                        SaveDBArticle(schoolid, type, alink, title, date);
+
+                    }
+                }
+            }
+        }
+
         public void RunItem(int schoolid)
         {
             string url = "https://gkcx.eol.cn/schoolhtm/specialty/specialtyList/specialty" + schoolid + ".htm";
@@ -1662,7 +1768,13 @@ namespace scoreQuery.Spider
                             string link = "https://gkcx.eol.cn" + href;
 
                             SaveDetail(schoolid, link);
-                            break;
+                        }
+
+                        if (li.InnerText.IndexOf("招生章程") >= 0)
+                        {
+                            string link = "https://gkcx.eol.cn" + href;
+
+                            SaveArticle(schoolid, link, "招生章程");
                         }
                     }
                 }
