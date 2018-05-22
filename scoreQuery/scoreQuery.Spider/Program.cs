@@ -1579,16 +1579,20 @@ namespace scoreQuery.Spider
 
         void SaveDB(string name, int schoolid)
         {
-            int sid = db.ExecuteScalar<int>("select id from [special.data] where name=@0", name);
+            object sidobj = db.ExecuteScalar<object>("select id from [special.data] where name=@0", name);
 
-            if (sid > 0)
+            int sid = 0;
+            if (sidobj == null || sidobj == DBNull.Value)
             {
+                sidobj =  db.ExecuteScalar<object>("insert into [special.data](name) values(@0);select @@IDENTITY;", name);
 
+                sid = Convert.ToInt32(sidobj);
             }
             else
             {
-                sid = db.ExecuteScalar<int>("insert into [special.data](name) values(@0);select @@IDENTITY;", name);
+                sid = Convert.ToInt32(sidobj);
             }
+
 
             if (!db.Exists("select top 1 1 from [school.special.data] where schoolid=@0 and specialid=@1", schoolid, sid))
             {
@@ -1733,27 +1737,27 @@ namespace scoreQuery.Spider
 
             switch (args[0])
             {
-                    //抓取学校基本信息
+                //抓取学校基本信息
                 case "schools":
                     new SchoolsSpider().RunSchools();
                     break;
 
-                    //抓取分数线
+                //抓取分数线
                 case "ss":
                     new SchoolsScoreSpider().RunSchoolsScores();
                     break;
 
-                    //抓取专业分数线
+                //抓取专业分数线
                 case "sss":
                     new SchoolsScoreSpider().RunSchoolsScoresSpecial();
                     break;
 
-                    //下载logo
+                //下载logo
                 case "logo":
                     new SchoolsSpider().DownloadLogo();
                     break;
 
-                    //抓取专业
+                //抓取专业
                 case "s-s":
                     new SchoolsSpecialSpider().Run();
                     break;
