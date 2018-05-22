@@ -1632,7 +1632,7 @@ namespace scoreQuery.Spider
 
 
         Regex reg_item_key = new Regex(@"/(?<val>\d+)\.htm");
-        void SaveDBArticle(int schoolid, string type, string link,string title, DateTime date)
+        void SaveDBArticle(int schoolid, string type, string link, string title, DateTime date)
         {
             Console.WriteLine(link);
 
@@ -1664,7 +1664,7 @@ namespace scoreQuery.Spider
 
                 var contNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"content news\"]");
 
-                if (contNode!=null)
+                if (contNode != null)
                 {
                     content = contNode.InnerHtml;
                 }
@@ -1767,14 +1767,31 @@ namespace scoreQuery.Spider
                         {
                             string link = "https://gkcx.eol.cn" + href;
 
-                            SaveDetail(schoolid, link);
+                            try
+                            {
+                                SaveDetail(schoolid, link);
+                            }
+                            catch (Exception ex)
+                            {
+
+
+                            }
+
                         }
 
                         if (li.InnerText.IndexOf("招生章程") >= 0)
                         {
                             string link = "https://gkcx.eol.cn" + href;
+                            try
+                            {
+                                SaveArticle(schoolid, link, "招生章程");
 
-                            SaveArticle(schoolid, link, "招生章程");
+                            }
+                            catch (Exception ex)
+                            {
+
+
+                            }
                         }
                     }
                 }
@@ -1796,12 +1813,18 @@ namespace scoreQuery.Spider
             }
         }
 
-        public void Run()
+        public void Run(string[] args)
         {
 
 
 
             int previd = 0;
+
+            if (args.Length >= 2)
+            {
+                previd = int.Parse(args[1]);
+            }
+
             bool hasNext = true;
             do
             {
@@ -1815,9 +1838,17 @@ namespace scoreQuery.Spider
 
 
 
+                    try
+                    {
+                        RunItem(previd);
+                    }
+                    catch (Exception ex)
+                    {
+
+                        Console.WriteLine("error:" + previd);
+                    }
 
 
-                    RunItem(previd);
 
                 }
 
@@ -1828,6 +1859,151 @@ namespace scoreQuery.Spider
 
                     hasNext = false;
                 }
+
+            } while (hasNext);
+
+        }
+
+
+
+        string GetSpecialDesFrom(string url)
+        {
+            string qurl = "https://gkcx.eol.cn"+url;
+            var wc = new WebClient();
+            byte[] data = wc.DownloadData(qurl);
+            wc.Dispose();
+
+            string html = Encoding.GetEncoding("utf-8").GetString(data);
+
+            html = ReplaceItemContent(html);
+
+            var doc = new HtmlAgilityPack.HtmlDocument();
+            doc.LoadHtml(html);
+
+            var contNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"li-majorMess\"]");
+
+            if (contNode!=null)
+            {
+                return contNode.InnerHtml;
+            }
+
+            return null;
+        }
+
+        public void Run()
+        {
+            string url = "https://data-gkcx.eol.cn/soudaxue/queryspecialty.html?messtype=json&page={0}&size=10";
+
+
+            int page = 0;
+
+
+            bool hasNext = true;
+            do
+            {
+                page++;
+
+                string qurl = string.Format(url, page);
+
+                Console.WriteLine(qurl);
+
+                var wc = new WebClient();
+                byte[] data = wc.DownloadData(qurl);
+                wc.Dispose();
+
+                string json = Encoding.GetEncoding("utf-8").GetString(data);
+
+                if (string.IsNullOrEmpty(json))
+                {
+                    break;
+                }
+
+                dynamic dyobj = JsonConvert.DeserializeObject<dynamic>(json);
+
+
+                if (dyobj == null)
+                {
+                    break;
+                }
+
+
+                var list = dyobj.school;
+
+                foreach (var item in list)
+                {
+                    string specialname = item.specialname;
+                    string code = item.code;
+                    string specialurl = item.specialurl;
+
+                    string zycengci = item.zycengci;
+                    string zytype = item.zytype;
+                    string bnum = item.bnum;
+                    string znum = item.znum;
+                    string zyid = item.zyid;
+                    string ranking = item.ranking;
+                    string rankingType = item.rankingType;
+
+
+
+                    if(!db.Exists("select top 1 1 from [special.data] where code=@0", code))
+                    {
+                        string des = GetSpecialDesFrom(specialurl)??string.Empty;
+
+                        var nvc = new Common.DB.NVCollection();
+                        nvc["name"] = specialname;
+                        nvc["code"] = code;
+                        nvc["zycengci"] = zycengci;
+                        nvc["zytype"] = zytype;
+                        nvc["bnum"] = bnum;
+                        nvc["znum"] = znum;
+                        nvc["zyid"] = zyid;
+                        nvc["ranking"] = ranking;
+                        nvc["rankingType"] = rankingType;
+                        nvc["des"] = des;
+
+
+                        db.ExecuteNoneQuery("insert into [special.data]([name],[code],[zycengci],[zytype],[bnum],[znum],[zyid],[ranking],[rankingType],[des]) values(@name,@code,@zycengci,@zytype,@bnum,@znum,@zyid,@ranking,@rankingType,@des)", nvc);
+                    }
+                    else
+                    {
+                        string des = GetSpecialDesFrom(specialurl) ?? string.Empty;
+
+                        var nvc = new Common.DB.NVCollection();
+                        nvc["name"] = specialname;
+                        nvc["code"] = code;
+                        nvc["zycengci"] = zycengci;
+                        nvc["zytype"] = zytype;
+                        nvc["bnum"] = bnum;
+                        nvc["znum"] = znum;
+                        nvc["zyid"] = zyid;
+                        nvc["ranking"] = ranking;
+                        nvc["rankingType"] = rankingType;
+                        nvc["des"] = des;
+
+
+                        db.ExecuteNoneQuery("update [special.data] set [name]=@name,[code]=@code,[zycengci]=@zycengci,[zytype]=@zytype,[bnum]=@bnum,[znum]=@znum,[zyid]=@zyid,[ranking]=@ranking,[rankingType]=@rankingType,[des]=@des where name=@name or code=@code", nvc);
+                    }
+
+
+                }
+
+                if (list != null)
+                {
+                    if (list.Count == 0)
+                    {
+
+                        Console.WriteLine("complete");
+
+                        hasNext = false;
+                    }
+                }
+                else
+                {
+                    hasNext = false;
+
+                }
+
+
 
             } while (hasNext);
 
@@ -1871,6 +2047,11 @@ namespace scoreQuery.Spider
 
                 //抓取专业
                 case "s-s":
+                    new SchoolsSpecialSpider().Run(args);
+                    break;
+
+                //抓取专业
+                case "s-s-all":
                     new SchoolsSpecialSpider().Run();
                     break;
 
