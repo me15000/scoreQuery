@@ -1,17 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Net;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Xml;
+using System;
+using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
-using System.Net.Sockets;
-using System.Collections.Specialized;
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Xml;
 
 namespace scoreQuery.Spider
 {
@@ -827,6 +823,46 @@ namespace scoreQuery.Spider
 
         }
 
+        public void DownloadLogo()
+        {
+
+            int previd = 0;
+            bool hasNext = true;
+            do
+            {
+                var list = db.GetDataList("select top 5 schoolid,province from [school.data] where schoolid>@0 order by schoolid asc", previd);
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var ent = list[i];
+
+                    previd = Convert.ToInt32(ent["schoolid"]);
+
+
+
+                    string url = "https://gkcx.eol.cn/upload/schoollogo/" + previd + ".jpg";
+                    Console.WriteLine(url);
+
+                    using (var wc = new WebClient())
+                    {
+                        wc.DownloadFile(url, "./schoollogo/" + previd + ".jpg");
+                    }
+
+
+
+                }
+
+                if (list.Count == 0)
+                {
+
+                    Console.WriteLine("complete");
+
+                    hasNext = false;
+                }
+
+            } while (hasNext);
+        }
+
     }
 
     public class SchoolsScoreSpider
@@ -1512,7 +1548,176 @@ namespace scoreQuery.Spider
             Console.Read();
             */
         }
+
+
     }
+
+    public class SchoolsSpecialSpider
+    {
+        static Common.DB.IDBHelper db = Common.DB.Factory.CreateDBHelper();
+
+
+        static Regex[] reg_array = new Regex[] {
+         new Regex(@"<script[^<>]*>([\s\S]*?)</script>"),
+         new Regex(@"<style[^<>]*>([\s\S]*?)</style>"),
+         new Regex(@"<iframe [^<>]*>([\s\S]*?)</iframe>"),
+         new Regex(@"<img[^<>]+>"),
+
+        };
+        string ReplaceItemContent(string html)
+        {
+            for (int i = 0; i < reg_array.Length; i++)
+            {
+                var reg = reg_array[i];
+
+                html = reg.Replace(html, string.Empty);
+            }
+
+            return html;
+        }
+
+
+        void SaveDB(string name, int schoolid)
+        {
+            int sid = db.ExecuteScalar<int>("select id from [special.data] where name=@0", name);
+
+            if (sid > 0)
+            {
+
+            }
+            else
+            {
+                sid = db.ExecuteScalar<int>("insert into [special.data](name) values(@0);select @@IDENTITY;", name);
+            }
+
+            if (!db.Exists("select top 1 1 from [school.special.data] where schoolid=@0 and specialid=@1", schoolid, sid))
+            {
+                db.ExecuteNoneQuery("insert into [school.special.data](schoolid,specialid) values(@0,@1)", schoolid, sid);
+            }
+        }
+
+
+        void SaveDetail(int schoolid, string url)
+        {
+
+            using (var wc = new WebClient())
+            {
+                byte[] data = wc.DownloadData(url);
+
+                string html = Encoding.GetEncoding("utf-8").GetString(data);
+
+                html = ReplaceItemContent(html);
+
+
+                var doc = new HtmlAgilityPack.HtmlDocument();
+
+                doc.LoadHtml(html);
+
+                var contentNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"content news\"]");
+
+                if (contentNode == null)
+                {
+                    return;
+                }
+
+                var content = contentNode.InnerHtml;
+
+                db.ExecuteNoneQuery("update [school.data] set des=@0 where schoolid=@1", content, schoolid);
+            }
+        }
+
+        public void RunItem(int schoolid)
+        {
+            string url = "https://gkcx.eol.cn/schoolhtm/specialty/specialtyList/specialty" + schoolid + ".htm";
+
+            Console.WriteLine(url);
+
+            using (var wc = new WebClient())
+            {
+                byte[] data = wc.DownloadData(url);
+
+                string html = Encoding.GetEncoding("utf-8").GetString(data);
+
+                html = ReplaceItemContent(html);
+
+
+                var doc = new HtmlAgilityPack.HtmlDocument();
+
+                doc.LoadHtml(html);
+
+
+                var lis = doc.DocumentNode.SelectNodes("//div[@class=\"s_nav menu_school\"]/ul/li/a");
+
+                if (lis != null)
+                {
+                    foreach (var li in lis)
+                    {
+                        string href = li.Attributes["href"].Value;
+                        if (href.IndexOf("/detail.htm") >= 0)
+                        {
+                            string link = "https://gkcx.eol.cn" + href;
+
+                            SaveDetail(schoolid, link);
+                            break;
+                        }
+                    }
+                }
+
+                var nodes = doc.DocumentNode.SelectNodes("//ul[@class=\"li-major grid\"]/li/a");
+
+                if (nodes != null)
+                {
+                    for (int i = 0; i < nodes.Count; i++)
+                    {
+                        var node = nodes[i];
+
+                        string ssname = node.InnerText.Trim();
+
+                        SaveDB(ssname, schoolid);
+
+                    }
+                }
+            }
+        }
+
+        public void Run()
+        {
+
+
+
+            int previd = 0;
+            bool hasNext = true;
+            do
+            {
+                var list = db.GetDataList("select top 5 schoolid,province from [school.data] where schoolid>@0 order by schoolid asc", previd);
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var ent = list[i];
+
+                    previd = Convert.ToInt32(ent["schoolid"]);
+
+
+
+
+
+                    RunItem(previd);
+
+                }
+
+                if (list.Count == 0)
+                {
+
+                    Console.WriteLine("complete");
+
+                    hasNext = false;
+                }
+
+            } while (hasNext);
+
+        }
+    }
+
 
     class Program
     {
@@ -1528,16 +1733,29 @@ namespace scoreQuery.Spider
 
             switch (args[0])
             {
+                    //抓取学校基本信息
                 case "schools":
                     new SchoolsSpider().RunSchools();
                     break;
 
+                    //抓取分数线
                 case "ss":
                     new SchoolsScoreSpider().RunSchoolsScores();
                     break;
 
+                    //抓取专业分数线
                 case "sss":
                     new SchoolsScoreSpider().RunSchoolsScoresSpecial();
+                    break;
+
+                    //下载logo
+                case "logo":
+                    new SchoolsSpider().DownloadLogo();
+                    break;
+
+                    //抓取专业
+                case "s-s":
+                    new SchoolsSpecialSpider().Run();
                     break;
 
                 default:

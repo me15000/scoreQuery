@@ -11,6 +11,41 @@ namespace TestQ
     {
         static void Main(string[] args)
         {
+
+            string oldhtml = "";
+
+            oldhtml = System.Text.RegularExpressions.Regex.Replace(oldhtml, @"href\=""(?<link>[^""]+)""", (o) =>
+            {
+
+                string link = o.Groups["link"].Value;
+
+                if (link.IndexOf("//") == 0 || link.IndexOf("http") == 0)
+                {
+                    return o.Value;
+                }
+                else
+                {
+                    if (link.IndexOf("/") == 0)
+                    {
+                        return @"href=""http://www.52miji.com" + link + @"""";
+
+                    }
+                    else
+                    {
+                        return @"href=""http://www.52miji.com/" + link + @"""";
+                    }
+
+                }
+
+
+                return null;
+            });
+
+
+
+
+
+
             string password = "o0q0otL8aEzpcZL/FT9WsQ==";
             string filename = "{\"foo\":\"bar\"}";
 
