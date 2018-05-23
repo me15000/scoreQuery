@@ -103,7 +103,8 @@ namespace API
 
             if (page > pc)
             {
-                psql.AbsolutePage = page = 1;
+                EchoFailJson("page>pagecount");
+                return;
             }
 
             string qsql = psql.GetQueryString();
@@ -318,7 +319,7 @@ namespace API
             if (!string.IsNullOrEmpty(schooltype))
             {
                 sqlwhere += " and schooltype=@schooltype";
-                query["schooltype"] = province;
+                query["schooltype"] = schooltype;
             }
 
 
@@ -406,7 +407,10 @@ namespace API
 
             if (page > pc)
             {
-                psql.AbsolutePage = page = 1;
+                //psql.AbsolutePage = page = 1;
+
+                EchoFailJson("page>pagecount");
+                return;
             }
 
             string qsql = psql.GetQueryString();
