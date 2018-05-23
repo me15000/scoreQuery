@@ -1590,6 +1590,7 @@ namespace scoreQuery.Spider
         }
 
 
+        static Regex RegHTML = new Regex(@"<[^<>]+>");
         void SaveDetail(int schoolid, string url)
         {
 
@@ -1613,7 +1614,7 @@ namespace scoreQuery.Spider
                     return;
                 }
 
-                var content = contentNode.InnerHtml;
+                var content = RegHTML.Replace(contentNode.InnerHtml, string.Empty).Trim();
 
                 db.ExecuteNoneQuery("update [school.data] set des=@0 where schoolid=@1", content, schoolid);
             }
@@ -1664,6 +1665,7 @@ namespace scoreQuery.Spider
                 return;
             }
 
+            content = RegHTML.Replace(content, string.Empty).Trim();
 
             if (!db.Exists("select top 1 1 from [school.article] where [key]=@0", pk))
             {
@@ -1676,6 +1678,15 @@ namespace scoreQuery.Spider
                 nvc["key"] = pk;
 
                 db.ExecuteNoneQuery("insert into [school.article](schoolid,year,type,data,title,[key]) values(@schoolid,@year,@type,@data,@title,@key)", nvc);
+            }
+            else
+            {
+                var nvc = new Common.DB.NVCollection();                
+                nvc["data"] = content;                
+                nvc["key"] = pk;
+
+                db.ExecuteNoneQuery("update [school.article] set data=@data where [key]=@key", nvc);
+
             }
         }
 
@@ -1752,7 +1763,7 @@ namespace scoreQuery.Spider
                     foreach (var li in lis)
                     {
                         string href = li.Attributes["href"].Value;
-                        if (href.IndexOf("/detail.htm") >= 0)
+                        if (li.InnerText.IndexOf("学校简介") >= 0)
                         {
                             string link = "https://gkcx.eol.cn" + href;
 
@@ -2003,7 +2014,7 @@ namespace scoreQuery.Spider
                         if (idobj != null && idobj != DBNull.Value)
                         {
                             spid = Convert.ToInt32(idobj);
-                           
+
                         }
                     }
                     else
@@ -2207,13 +2218,13 @@ namespace scoreQuery.Spider
                     new SchoolsSpider().DownloadLogo();
                     break;
 
-                //抓取专业
-                case "s-s":
+                //抓取学校详情
+                case "s-d":
                     new SchoolsSpecialSpider().Run(args);
                     break;
 
                 //抓取专业
-                case "s-s-all":
+                case "s-s":
                     new SchoolsSpecialSpider().Run();
                     break;
 
