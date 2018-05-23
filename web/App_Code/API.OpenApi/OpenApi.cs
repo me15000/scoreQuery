@@ -345,8 +345,17 @@ namespace API
 
             if (!string.IsNullOrEmpty(province))
             {
-                sqlwhere += " and province=@province";
-                query["province"] = province;
+                if (province == "北上广")
+                {
+                    sqlwhere += " and (province='北京' or province='上海' or province='广东')";
+                }
+                else
+                {
+                    sqlwhere += " and province=@province";
+                    query["province"] = province;
+                }
+
+
             }
 
             if (!string.IsNullOrEmpty(schooltype))
