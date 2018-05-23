@@ -9,3 +9,4 @@ D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.pdb
 D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Release\HtmlAgilityPack.dll
 D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Release\HtmlAgilityPack.pdb
 D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\bin\Release\HtmlAgilityPack.xml
+D:\git\scoreQuery\scoreQuery\scoreQuery.Spider\obj\Release\scoreQuery.Spider.csprojResolveAssemblyReference.cache

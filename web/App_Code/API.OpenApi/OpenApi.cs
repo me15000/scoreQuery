@@ -290,6 +290,9 @@ namespace API
             string specialname = Request.QueryString["specialname"] ?? string.Empty;
             string schoolproperty = Request.QueryString["schoolproperty"] ?? string.Empty;
 
+            string zhongdian = Request.QueryString["zd"] ?? string.Empty;
+            string zhuoyue = Request.QueryString["zy"] ?? string.Empty;
+
             int rankingbegin = int.Parse(Request.QueryString["rankingbegin"] ?? "-1");
             int rankingend = int.Parse(Request.QueryString["rankingend"] ?? "-1");
 
@@ -329,6 +332,17 @@ namespace API
                 sqlwhere += " and f211=@f211";
                 query["f211"] = f211;
             }
+
+            if (zhongdian == "1")
+            {
+                sqlwhere += " and (f211=1 or f985=1)";
+            }
+
+            if (zhuoyue=="1")
+            {
+                sqlwhere += " and (f211=1 and f985=1)";
+            }
+
             if (!string.IsNullOrEmpty(level))
             {
                 sqlwhere += " and level=@level";
@@ -380,7 +394,7 @@ namespace API
             psql.Table = "[school.data]";
             psql.Fields = "[schoolid],[schoolname],[province],[schooltype],[schoolproperty],[edudirectly],[f985],[f211],[level],[autonomyrs],[library],[membership],[schoolnature],[shoufei],[jianjie],[schoolcode],[ranking],[rankingCollegetype],[guanwang],[oldname],[master],[num],[firstrate]";
 
-            psql.Sort = "schoolid asc";
+            psql.Sort = "ranking asc";
             psql.Where = sqlwhere;
 
 

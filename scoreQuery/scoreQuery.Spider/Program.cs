@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Web;
+using System.Threading;
 
 namespace scoreQuery.Spider
 {
@@ -699,8 +701,8 @@ namespace scoreQuery.Spider
                 nvc["schooltype"] = info["schooltype"] is JArray ? string.Empty : info["schooltype"];
                 nvc["schoolproperty"] = info["schoolproperty"] is JArray ? string.Empty : info["schoolproperty"];
                 nvc["edudirectly"] = info["edudirectly"] is JArray ? string.Empty : info["edudirectly"];
-                nvc["f985"] = info["f985"] is JArray ? string.Empty : info["f985"];
-                nvc["f211"] = info["f211"] is JArray ? string.Empty : info["f211"];
+                nvc["f985"] = bool.Parse(info["f985"] is JArray ? string.Empty : info["f985"] as string ?? string.Empty);
+                nvc["f211"] = bool.Parse(info["f211"] is JArray ? string.Empty : info["f211"] as string ?? string.Empty);
                 nvc["level"] = info["level"] is JArray ? string.Empty : info["level"];
                 nvc["autonomyrs"] = info["autonomyrs"] is JArray ? string.Empty : info["autonomyrs"];
                 nvc["library"] = info["library"] is JArray ? string.Empty : info["library"];
@@ -710,11 +712,11 @@ namespace scoreQuery.Spider
                 nvc["jianjie"] = info["jianjie"] is JArray ? string.Empty : info["jianjie"];
 
                 nvc["schoolcode"] = info["schoolcode"] is JArray ? string.Empty : info["schoolcode"];
-                nvc["ranking"] = info["ranking"] is JArray ? string.Empty : info["ranking"];
-                nvc["rankingCollegetype"] = info["rankingCollegetype"] is JArray ? string.Empty : info["rankingCollegetype"];
+                nvc["ranking"] = int.Parse(info["ranking"] is JArray ? string.Empty : info["ranking"] as string ?? string.Empty);
+                nvc["rankingCollegetype"] = int.Parse(info["rankingCollegetype"] is JArray ? string.Empty : info["rankingCollegetype"] as string ?? string.Empty);
                 nvc["guanwang"] = info["guanwang"] is JArray ? string.Empty : info["guanwang"];
                 nvc["oldname"] = info["oldname"] is JArray ? string.Empty : info["oldname"];
-                nvc["master"] = info["master"] is JArray ? string.Empty : info["master"];
+                nvc["master"] = int.Parse(info["master"] is JArray ? string.Empty : info["master"] as string ?? string.Empty);
 
                 nvc["num"] = info["num"] is JArray ? string.Empty : info["num"];
                 nvc["firstrate"] = info["firstrate"] is JArray ? string.Empty : info["firstrate"];
@@ -1577,26 +1579,13 @@ namespace scoreQuery.Spider
         }
 
 
-        void SaveDB(string name, int schoolid)
+        void SaveDBSchoolSpecial(int spid, int schoolid)
         {
-            object sidobj = db.ExecuteScalar<object>("select id from [special.data] where name=@0", name);
 
-            int sid = 0;
-            if (sidobj == null || sidobj == DBNull.Value)
+
+            if (!db.Exists("select top 1 1 from [school.special.data] where schoolid=@0 and specialid=@1", schoolid, spid))
             {
-                sidobj = db.ExecuteScalar<object>("insert into [special.data](name) values(@0);select @@IDENTITY;", name);
-
-                sid = Convert.ToInt32(sidobj);
-            }
-            else
-            {
-                sid = Convert.ToInt32(sidobj);
-            }
-
-
-            if (!db.Exists("select top 1 1 from [school.special.data] where schoolid=@0 and specialid=@1", schoolid, sid))
-            {
-                db.ExecuteNoneQuery("insert into [school.special.data](schoolid,specialid) values(@0,@1)", schoolid, sid);
+                db.ExecuteNoneQuery("insert into [school.special.data](schoolid,specialid) values(@0,@1)", schoolid, spid);
             }
         }
 
@@ -1796,6 +1785,8 @@ namespace scoreQuery.Spider
                     }
                 }
 
+
+                /*
                 var nodes = doc.DocumentNode.SelectNodes("//ul[@class=\"li-major grid\"]/li/a");
 
                 if (nodes != null)
@@ -1809,7 +1800,8 @@ namespace scoreQuery.Spider
                         SaveDB(ssname, schoolid);
 
                     }
-                }
+                }*/
+
             }
         }
 
@@ -1868,7 +1860,7 @@ namespace scoreQuery.Spider
 
         string GetSpecialDesFrom(string url)
         {
-            string qurl = "https://gkcx.eol.cn"+url;
+            string qurl = "https://gkcx.eol.cn" + url;
             var wc = new WebClient();
             byte[] data = wc.DownloadData(qurl);
             wc.Dispose();
@@ -1882,7 +1874,7 @@ namespace scoreQuery.Spider
 
             var contNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"li-majorMess\"]");
 
-            if (contNode!=null)
+            if (contNode != null)
             {
                 return contNode.InnerHtml;
             }
@@ -1906,14 +1898,44 @@ namespace scoreQuery.Spider
                 string qurl = string.Format(url, page);
 
                 Console.WriteLine(qurl);
+                byte[] data = null;
 
-                var wc = new WebClient();
-                byte[] data = wc.DownloadData(qurl);
-                wc.Dispose();
+                int loops = 0;
+
+                loop:
+                try
+                {
+                    loops++;
+                    var wc = new WebClient();
+                    data = wc.DownloadData(qurl);
+                    wc.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+
+                    if (loops < 5)
+                    {
+                        Thread.Sleep(1000);
+                        goto loop;
+                    }
+                }
+
+                if (data == null)
+                {
+                    break;
+                }
+
 
                 string json = Encoding.GetEncoding("utf-8").GetString(data);
 
                 if (string.IsNullOrEmpty(json))
+                {
+                    break;
+                }
+
+
+                if (json.IndexOf("\"school\"") == -1)
                 {
                     break;
                 }
@@ -1926,11 +1948,23 @@ namespace scoreQuery.Spider
                     break;
                 }
 
+                if (dyobj.school == null)
+                {
+                    break;
+                }
+
 
                 var list = dyobj.school;
 
+
+
                 foreach (var item in list)
                 {
+                    if (item == null)
+                    {
+                        break;
+                    }
+
                     string specialname = item.specialname;
                     string code = item.code;
                     string specialurl = item.specialurl;
@@ -1943,28 +1977,11 @@ namespace scoreQuery.Spider
                     string ranking = item.ranking;
                     string rankingType = item.rankingType;
 
+                    int spid = 0;
 
+                    var spdata = db.GetData("select top 1 id,name from [special.data] where code=@0", code);
 
-                    if(!db.Exists("select top 1 1 from [special.data] where code=@0", code))
-                    {
-                        string des = GetSpecialDesFrom(specialurl)??string.Empty;
-
-                        var nvc = new Common.DB.NVCollection();
-                        nvc["name"] = specialname;
-                        nvc["code"] = code;
-                        nvc["zycengci"] = zycengci;
-                        nvc["zytype"] = zytype;
-                        nvc["bnum"] = bnum;
-                        nvc["znum"] = znum;
-                        nvc["zyid"] = zyid;
-                        nvc["ranking"] = ranking;
-                        nvc["rankingType"] = rankingType;
-                        nvc["des"] = des;
-
-
-                        db.ExecuteNoneQuery("insert into [special.data]([name],[code],[zycengci],[zytype],[bnum],[znum],[zyid],[ranking],[rankingType],[des]) values(@name,@code,@zycengci,@zytype,@bnum,@znum,@zyid,@ranking,@rankingType,@des)", nvc);
-                    }
-                    else
+                    if (spdata == null)
                     {
                         string des = GetSpecialDesFrom(specialurl) ?? string.Empty;
 
@@ -1981,9 +1998,40 @@ namespace scoreQuery.Spider
                         nvc["des"] = des;
 
 
-                        db.ExecuteNoneQuery("update [special.data] set [name]=@name,[code]=@code,[zycengci]=@zycengci,[zytype]=@zytype,[bnum]=@bnum,[znum]=@znum,[zyid]=@zyid,[ranking]=@ranking,[rankingType]=@rankingType,[des]=@des where name=@name or code=@code", nvc);
+                        object idobj = db.ExecuteScalar<object>("insert into [special.data]([name],[code],[zycengci],[zytype],[bnum],[znum],[zyid],[ranking],[rankingType],[des]) values(@name,@code,@zycengci,@zytype,@bnum,@znum,@zyid,@ranking,@rankingType,@des);select @@identity; ", nvc);
+
+                        if (idobj != null && idobj != DBNull.Value)
+                        {
+                            spid = Convert.ToInt32(idobj);
+                           
+                        }
+                    }
+                    else
+                    {
+
+                        spid = Convert.ToInt32(spdata["id"]);
+                        string des = GetSpecialDesFrom(specialurl) ?? string.Empty;
+
+                        var nvc = new Common.DB.NVCollection();
+                        nvc["name"] = specialname;
+                        nvc["code"] = code;
+                        nvc["zycengci"] = zycengci;
+                        nvc["zytype"] = zytype;
+                        nvc["bnum"] = bnum;
+                        nvc["znum"] = znum;
+                        nvc["zyid"] = zyid;
+                        nvc["ranking"] = ranking;
+                        nvc["rankingType"] = rankingType;
+                        nvc["des"] = des;
+                        nvc["id"] = spid;
+
+                        spdata["name"] = specialname;
+
+                        db.ExecuteNoneQuery("update [special.data] set [name]=@name,[code]=@code,[zycengci]=@zycengci,[zytype]=@zytype,[bnum]=@bnum,[znum]=@znum,[zyid]=@zyid,[ranking]=@ranking,[rankingType]=@rankingType,[des]=@des where id=@id", nvc);
                     }
 
+
+                    BuildLink(spid, specialname);
 
                 }
 
@@ -2008,6 +2056,118 @@ namespace scoreQuery.Spider
             } while (hasNext);
 
         }
+
+
+        public void BuildLink(int spid, string spname)
+        {
+            string url = "https://data-gkcx.eol.cn/soudaxue/querySchoolSpecialty.html?messtype=json&page={0}&size=10&keyWord1=" + HttpUtility.UrlEncode(spname);
+
+
+            int page = 0;
+
+
+            bool hasNext = true;
+            do
+            {
+                page++;
+
+                string qurl = string.Format(url, page);
+
+                Console.WriteLine(qurl);
+
+                byte[] data = null;
+
+
+                int loops = 0;
+
+                loop:
+                try
+                {
+                    loops++;
+                    var wc = new WebClient();
+                    data = wc.DownloadData(qurl);
+                    wc.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+
+                    if (loops < 5)
+                    {
+                        Thread.Sleep(1000);
+                        goto loop;
+                    }
+                }
+
+                if (data == null)
+                {
+                    break;
+                }
+
+
+                string json = Encoding.GetEncoding("utf-8").GetString(data);
+
+                if (json.IndexOf("\"school\"") == -1)
+                {
+                    break;
+                }
+
+                if (string.IsNullOrEmpty(json))
+                {
+                    break;
+                }
+
+                dynamic dyobj = JsonConvert.DeserializeObject<dynamic>(json);
+
+
+                if (dyobj == null)
+                {
+                    break;
+                }
+
+
+
+                if (dyobj.school == null)
+                {
+                    break;
+                }
+
+                dynamic list = dyobj.school;
+
+
+                foreach (var item in list)
+                {
+                    if (item == null)
+                    {
+                        break;
+                    }
+
+                    int schoolid = Convert.ToInt32(item.schoolid);
+
+                    SaveDBSchoolSpecial(spid, schoolid);
+
+                }
+
+                if (list != null)
+                {
+                    if (list.Count == 0)
+                    {
+
+                        Console.WriteLine("complete");
+
+                        hasNext = false;
+                    }
+                }
+                else
+                {
+                    hasNext = false;
+
+                }
+
+
+
+            } while (hasNext);
+        }
     }
 
 
@@ -2017,11 +2177,13 @@ namespace scoreQuery.Spider
 
         static void Main(string[] args)
         {
-            if (args.Length == 0)
-            {
-                Console.WriteLine("schools:抓取所有学校；ss:抓取所有学校的往年分数");
-                return;
-            }
+            //if (args.Length == 0)
+            //{
+            //    Console.WriteLine("schools:抓取所有学校；ss:抓取所有学校的往年分数");
+            //    return;
+            //}
+
+            //new SchoolsSpecialSpider().Run();
 
             switch (args[0])
             {
