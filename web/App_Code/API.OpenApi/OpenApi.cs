@@ -25,15 +25,17 @@ namespace API
 
             switch (Request.PathInfo)
             {
-
+                //[学校专业类别]	
                 case "/special/type/list.json":
                     special_type_list_json();
                     break;
 
+                //[学校专业列表]	
                 case "/special/list.json":
                     special_list_json();
                     break;
 
+                //[专业详细介绍查询]	
                 case "/special/info.json":
                     special_info_json();
                     break;
