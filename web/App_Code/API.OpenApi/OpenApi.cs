@@ -3,6 +3,7 @@ using System;
 using System.Web;
 using System.IO;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace API
 {
@@ -24,6 +25,10 @@ namespace API
 
             switch (Request.PathInfo)
             {
+
+                case "/special/type/list.json":
+                    special_type_list_json();
+                    break;
 
                 case "/special/list.json":
                     special_list_json();
@@ -65,6 +70,24 @@ namespace API
             }
         }
 
+
+        void special_type_list_json()
+        {
+            var list = Common.Helpers.CacheHelper.GetCacheObject<List<Common.DB.NVCollection>>("cache_special_type_list", 3600 * 24, () =>
+            {
+
+                var db = Common.DB.Factory.CreateDBHelper();
+
+                string sql = "select distinct zytype as type from [special.data]";
+
+                return db.GetDataList(sql);
+            });
+
+
+            EchoSuccJson(list);
+
+        }
+
         void special_list_json()
         {
             string name = Request.QueryString["name"];
@@ -73,6 +96,7 @@ namespace API
             int page = int.Parse(Request.QueryString["page"] ?? "1");
             int pagesize = int.Parse(Request.QueryString["pagesize"] ?? "10");
 
+            string type = Request.QueryString["type"] ?? string.Empty;
 
 
             var query = new Common.DB.NVCollection();
@@ -81,6 +105,15 @@ namespace API
             {
                 sqlwhere += " and name like '%" + GetSQLSafeStr(name) + "%'";
             }
+
+            if (!string.IsNullOrEmpty(type))
+            {
+                sqlwhere += " and zytype=@type";
+                query["type"] = type;
+            }
+
+
+
 
             var db = Common.DB.Factory.CreateDBHelper();
 
@@ -339,7 +372,7 @@ namespace API
                 sqlwhere += " and (f211=1 or f985=1)";
             }
 
-            if (zhuoyue=="1")
+            if (zhuoyue == "1")
             {
                 sqlwhere += " and (f211=1 and f985=1)";
             }
