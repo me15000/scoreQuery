@@ -99,6 +99,7 @@ namespace API
             int pagesize = int.Parse(Request.QueryString["pagesize"] ?? "10");
 
             string type = Request.QueryString["type"] ?? string.Empty;
+            string level = Request.QueryString["level"] ?? string.Empty;
 
 
             var query = new Common.DB.NVCollection();
@@ -114,6 +115,12 @@ namespace API
                 query["type"] = type;
             }
 
+
+            if (!string.IsNullOrEmpty(level))
+            {
+                sqlwhere += " and [zycengci]=@level";
+                query["level"] = level;
+            }
 
 
 
