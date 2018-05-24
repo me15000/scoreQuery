@@ -1564,6 +1564,7 @@ namespace scoreQuery.Spider
          new Regex(@"<style[^<>]*>([\s\S]*?)</style>"),
          new Regex(@"<iframe [^<>]*>([\s\S]*?)</iframe>"),
          new Regex(@"<img[^<>]+>"),
+         new Regex(@"<link[^<>]+>"),
 
         };
         string ReplaceItemContent(string html)
@@ -1681,13 +1682,34 @@ namespace scoreQuery.Spider
             }
             else
             {
-                var nvc = new Common.DB.NVCollection();                
-                nvc["data"] = content;                
+                var nvc = new Common.DB.NVCollection();
+                nvc["data"] = content;
                 nvc["key"] = pk;
 
                 db.ExecuteNoneQuery("update [school.article] set data=@data where [key]=@key", nvc);
 
             }
+        }
+
+
+        static Regex[] reg_array2 = new Regex[] {
+         new Regex(@"<script[^<>]*src[^<>]*>([\s\S]*?)</script>"),
+         new Regex(@"<style[^<>]*>([\s\S]*?)</style>"),
+         new Regex(@"<iframe [^<>]*>([\s\S]*?)</iframe>"),
+         new Regex(@"<img[^<>]+>"),
+         new Regex(@"<link[^<>]+>"),
+
+        };
+        string ReplaceItemContent2(string html)
+        {
+            for (int i = 0; i < reg_array2.Length; i++)
+            {
+                var reg = reg_array2[i];
+
+                html = reg.Replace(html, string.Empty);
+            }
+
+            return html;
         }
 
         void SaveArticle(int schoolid, string link, string type)
@@ -1868,17 +1890,42 @@ namespace scoreQuery.Spider
         }
 
 
-
-        string GetSpecialDesFrom(string url)
+        class SpecialInfo
         {
+            public string details { get; set; }
+
+            //区域
+            public List<object> areas { get; set; }
+
+            //行业
+            public List<object> trades { get; set; }
+        }
+
+
+        static Regex Reg_Areas = new Regex(@"\{value\:(?<num>\d+)\,\s*name\:'(?<city>.+市?)'\}");
+        static Regex Reg_Trades = new Regex(@"data\:\s*\[(?<data>[^\[\]]+?)\]\,\s*axisLable");
+        static Regex Reg_TradesData = new Regex(@"barWidth\:([\s\S]*?)\[(?<nums>[\s\S]*?)\]");
+
+        SpecialInfo GetSpecialDesFrom(string url)
+        {
+            SpecialInfo info = new SpecialInfo();
             string qurl = "https://gkcx.eol.cn" + url;
             var wc = new WebClient();
             byte[] data = wc.DownloadData(qurl);
             wc.Dispose();
 
+            if (data == null)
+            {
+                return null;
+            }
             string html = Encoding.GetEncoding("utf-8").GetString(data);
 
-            html = ReplaceItemContent(html);
+            if (string.IsNullOrEmpty(html))
+            {
+                return null;
+            }
+
+            html = ReplaceItemContent2(html);
 
             var doc = new HtmlAgilityPack.HtmlDocument();
             doc.LoadHtml(html);
@@ -1887,10 +1934,53 @@ namespace scoreQuery.Spider
 
             if (contNode != null)
             {
-                return contNode.InnerHtml;
+                info.details = RegHTML.Replace(contNode.InnerHtml, string.Empty).Trim();
             }
 
-            return null;
+
+            var areas = Reg_Areas.Matches(html);
+            info.areas = new List<object>();
+            for (int i = 0; i < areas.Count; i++)
+            {
+                var area = areas[i];
+
+                info.areas.Add(new
+                {
+                    name = area.Groups["city"].Value,
+                    value = int.Parse(area.Groups["num"].Value)
+                });
+            }
+
+            var tradeM = Reg_Trades.Match(html);
+            var tradedataM = Reg_TradesData.Match(html);
+            info.trades = new List<object>();
+            if (tradeM.Success && tradedataM.Success)
+            {
+                string tradeStr = tradeM.Groups["data"].Value;
+                string tradedataStr = tradedataM.Groups["nums"].Value;
+
+                Regex tradeItem = new Regex(@"""(?<val>[^""]+)""");
+                Regex tradeDataItem = new Regex(@"\d+");
+
+                var tms = tradeItem.Matches(tradeStr);
+                var tdms = tradeDataItem.Matches(tradedataStr);
+
+                if (tms.Count == tdms.Count && tms.Count > 0)
+                {
+                    for (int i = 0; i < tms.Count; i++)
+                    {
+                        info.trades.Add(new
+                        {
+                            name = tms[i].Groups["val"].Value,
+                            value = int.Parse(tdms[i].Value)
+                        });
+                    }
+                }
+
+
+            }
+
+            return info;
         }
 
         public void Run()
@@ -1988,13 +2078,14 @@ namespace scoreQuery.Spider
                     string ranking = item.ranking;
                     string rankingType = item.rankingType;
 
+                    var info = GetSpecialDesFrom(specialurl);
+
                     int spid = 0;
 
                     var spdata = db.GetData("select top 1 id,name from [special.data] where code=@0", code);
 
                     if (spdata == null)
                     {
-                        string des = GetSpecialDesFrom(specialurl) ?? string.Empty;
 
                         var nvc = new Common.DB.NVCollection();
                         nvc["name"] = specialname;
@@ -2006,10 +2097,24 @@ namespace scoreQuery.Spider
                         nvc["zyid"] = zyid;
                         nvc["ranking"] = ranking;
                         nvc["rankingType"] = rankingType;
-                        nvc["des"] = des;
+                        nvc["des"] = info == null ? string.Empty : info.details;
+
+                        if (info != null)
+                        {
+                            nvc["data"] = JsonConvert.SerializeObject(new
+                            {
+                                info.areas,
+                                info.trades
+                            });
+                        }
+                        else
+                        {
+                            nvc["data"] = string.Empty;
+                        }
 
 
-                        object idobj = db.ExecuteScalar<object>("insert into [special.data]([name],[code],[zycengci],[zytype],[bnum],[znum],[zyid],[ranking],[rankingType],[des]) values(@name,@code,@zycengci,@zytype,@bnum,@znum,@zyid,@ranking,@rankingType,@des);select @@identity; ", nvc);
+
+                        object idobj = db.ExecuteScalar<object>("insert into [special.data]([name],[code],[zycengci],[zytype],[bnum],[znum],[zyid],[ranking],[rankingType],[des],[data]) values(@name,@code,@zycengci,@zytype,@bnum,@znum,@zyid,@ranking,@rankingType,@des,@data);select @@identity; ", nvc);
 
                         if (idobj != null && idobj != DBNull.Value)
                         {
@@ -2021,7 +2126,6 @@ namespace scoreQuery.Spider
                     {
 
                         spid = Convert.ToInt32(spdata["id"]);
-                        string des = GetSpecialDesFrom(specialurl) ?? string.Empty;
 
                         var nvc = new Common.DB.NVCollection();
                         nvc["name"] = specialname;
@@ -2033,12 +2137,26 @@ namespace scoreQuery.Spider
                         nvc["zyid"] = zyid;
                         nvc["ranking"] = ranking;
                         nvc["rankingType"] = rankingType;
-                        nvc["des"] = des;
                         nvc["id"] = spid;
+
+                        nvc["des"] = info == null ? string.Empty : info.details;
+                        if (info != null)
+                        {
+                            nvc["data"] = JsonConvert.SerializeObject(new
+                            {
+                                info.areas,
+                                info.trades
+                            });
+                        }
+                        else
+                        {
+                            nvc["data"] = string.Empty;
+                        }
+
 
                         spdata["name"] = specialname;
 
-                        db.ExecuteNoneQuery("update [special.data] set [name]=@name,[code]=@code,[zycengci]=@zycengci,[zytype]=@zytype,[bnum]=@bnum,[znum]=@znum,[zyid]=@zyid,[ranking]=@ranking,[rankingType]=@rankingType,[des]=@des where id=@id", nvc);
+                        db.ExecuteNoneQuery("update [special.data] set [name]=@name,[code]=@code,[zycengci]=@zycengci,[zytype]=@zytype,[bnum]=@bnum,[znum]=@znum,[zyid]=@zyid,[ranking]=@ranking,[rankingType]=@rankingType,[des]=@des,data=@data where id=@id", nvc);
                     }
 
 

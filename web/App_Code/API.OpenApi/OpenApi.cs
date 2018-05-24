@@ -143,7 +143,7 @@ namespace API
 
             int pc = Convert.ToInt32(Math.Ceiling((decimal)rc / (decimal)pagesize));
 
-            if (page > pc)
+            if (page > pc && pc > 0)
             {
                 EchoFailJson("page>pagecount");
                 return;
@@ -153,13 +153,32 @@ namespace API
 
             var datalist = db.GetDataList(qsql, query);
 
-            if (datalist == null)
-            {
-                EchoFailJson("error data is null");
-                return;
-            }
 
-            EchoSuccJson(datalist);
+            var data = new
+            {
+
+                code = 0,
+                status = "succ",
+                count = rc,
+                page = page,
+                pagesize = pagesize,
+                pagecount = pc,
+                data = datalist
+            };
+
+
+
+            string json = JsonConvert.SerializeObject(data);
+
+            Response.Write(json);
+
+            //if (datalist == null)
+            //{
+            //    EchoFailJson("error data is null");
+            //    return;
+            //}
+
+            //EchoSuccJson(datalist);
 
 
         }
@@ -194,12 +213,19 @@ namespace API
 
             var db = Common.DB.Factory.CreateDBHelper();
 
-            var entity = db.GetData("select id,name,code,zycengci,zytype,bnum,znum,zyid,ranking,rankingType,des from [special.data] where " + sqlwhere, nvc);
+            var entity = db.GetData("select id,name,code,zycengci,zytype,bnum,znum,zyid,ranking,rankingType,des,data from [special.data] where " + sqlwhere, nvc);
 
             if (entity == null)
             {
                 EchoFailJson("error data is null");
                 return;
+            }
+
+            string jsonData = entity["data"] as string ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(jsonData))
+            {
+                entity["data"] = JsonConvert.DeserializeObject<dynamic>(jsonData);
             }
 
             EchoSuccJson(entity);
@@ -456,7 +482,7 @@ namespace API
 
             int pc = Convert.ToInt32(Math.Ceiling((decimal)rc / (decimal)pagesize));
 
-            if (page > pc)
+            if (page > pc && pc > 0)
             {
                 //psql.AbsolutePage = page = 1;
 
@@ -501,7 +527,7 @@ namespace API
         {
             string key = Request.QueryString["key"] ?? string.Empty;
             var db = Common.DB.Factory.CreateDBHelper();
-            var data = db.GetData("select schoolid,year,type,title,[key],data from [school.article] where [key]=@ ", key);
+            var data = db.GetData("select schoolid,year,type,title,[key],data from [school.article] where [key]=@0 ", key);
 
 
             if (data == null)
