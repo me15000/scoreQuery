@@ -69,7 +69,47 @@ namespace API
                     school_special_score_list_json();
                     break;
 
+
+                case "/user/id.json":
+                    user_id_json();
+                    break;
+
             }
+        }
+
+        void user_id_json()
+        {
+            string dk = Request.QueryString["dk"] ?? string.Empty;
+            var db = Common.DB.Factory.CreateDBHelper();
+
+            int id = 0;
+
+            object objid = db.ExecuteScalar<object>("select id from user.data where dk=@0", dk);
+            if (objid == null || objid == DBNull.Value)
+            {
+                object exo = db.ExecuteScalar<object>("insert into[user.data](dk,date) values(@0,@1);select @@IDENTITY;", dk, DateTime.Now);
+
+                if (exo != null && exo != DBNull.Value)
+                {
+                    id = Convert.ToInt32(exo);
+                }
+                else
+                {
+                    id = 0;
+                }
+            }
+            else
+            {
+                id = Convert.ToInt32(objid);
+            }
+
+            EchoSuccJson(new
+            {
+                id = id
+            });
+
+
+
         }
 
 

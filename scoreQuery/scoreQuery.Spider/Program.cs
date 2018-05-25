@@ -977,7 +977,38 @@ namespace scoreQuery.Spider
             nvc["pc"] = info.pc;
             nvc["stype"] = info.stype;
 
-            db.ExecuteNoneQuery("insert into [school.special]([schoolid],[provinceid],[examieeid],[specialname],[year],[maxfs],[varfs],[minfs],[pc],[stype]) values(@schoolid,@provinceid,@examieeid,@specialname,@year,@maxfs,@varfs,@minfs,@pc,@stype)", nvc);
+            nvc["n_maxfs"] = -1;
+            nvc["n_varfs"] = -1;
+            nvc["n_minfs"] = -1;
+
+            if (true)
+            {
+                int num = 0;
+                if (int.TryParse(info.maxfs, out num))
+                {
+                    nvc["n_maxfs"] = num;
+                }
+            }
+            if (true)
+            {
+                int num = 0;
+                if (int.TryParse(info.varfs, out num))
+                {
+                    nvc["n_varfs"] = num;
+                }
+            }
+            if (true)
+            {
+                int num = 0;
+                if (int.TryParse(info.minfs, out num))
+                {
+                    nvc["n_minfs"] = num;
+                }
+            }
+
+
+
+            db.ExecuteNoneQuery("insert into [school.special]([schoolid],[provinceid],[examieeid],[specialname],[year],[maxfs],[varfs],[minfs],[pc],[stype],n_maxfs,n_varfs,n_minfs) values(@schoolid,@provinceid,@examieeid,@specialname,@year,@maxfs,@varfs,@minfs,@pc,@stype,@n_maxfs,@n_varfs,@n_minfs)", nvc);
         }
 
 
@@ -1012,7 +1043,38 @@ namespace scoreQuery.Spider
             nvc["rs"] = info.rs;
             nvc["ph"] = info.ph;
 
-            db.ExecuteNoneQuery("insert into [school.score]([schoolid],[provinceid],[examieeid],[batchid],[year],[maxScore],[minScore],[avgScore],[ps],[fc],[rb],[rs],[ph]) values(@schoolid,@provinceid,@examieeid,@batchid,@year,@maxScore,@minScore,@avgScore,@ps,@fc,@rb,@rs,@ph)", nvc);
+            nvc["n_maxScore"] = -1;
+            nvc["n_minScore"] = -1;
+            nvc["n_avgScore"] = -1;
+
+            if (true)
+            {
+                int num = 0;
+                if (int.TryParse(info.maxScore, out num))
+                {
+                    nvc["n_maxfs"] = num;
+                }
+            }
+            if (true)
+            {
+                int num = 0;
+                if (int.TryParse(info.minScore, out num))
+                {
+                    nvc["n_minScore"] = num;
+                }
+            }
+            if (true)
+            {
+                int num = 0;
+                if (int.TryParse(info.avgScore, out num))
+                {
+                    nvc["n_avgScore"] = num;
+                }
+            }
+
+
+
+            db.ExecuteNoneQuery("insert into [school.score]([schoolid],[provinceid],[examieeid],[batchid],[year],[maxScore],[minScore],[avgScore],[ps],[fc],[rb],[rs],[ph],n_maxfs,n_minScore,n_avgScore) values(@schoolid,@provinceid,@examieeid,@batchid,@year,@maxScore,@minScore,@avgScore,@ps,@fc,@rb,@rs,@ph,@n_maxfs,@n_minScore,@n_avgScore)", nvc);
 
         }
 
@@ -1591,7 +1653,7 @@ namespace scoreQuery.Spider
         }
 
 
-        static Regex RegHTML = new Regex(@"<[^<>]+>");
+        static Regex RegHTML = new Regex(@"(<[^<>]+>|\&\w+;)");
         void SaveDetail(int schoolid, string url)
         {
 
@@ -1615,7 +1677,13 @@ namespace scoreQuery.Spider
                     return;
                 }
 
-                var content = RegHTML.Replace(contentNode.InnerHtml, string.Empty).Trim();
+                string contHtml = contentNode.InnerHtml;
+                contHtml = contHtml.Replace("</p>", "\r\n");
+                contHtml = contHtml.Replace("</div>", "\r\n");
+                contHtml = Regex.Replace(contHtml, @"<br[^<>]*>", "\r\n");
+
+
+                var content = RegHTML.Replace(contHtml, string.Empty).Trim();
 
                 db.ExecuteNoneQuery("update [school.data] set des=@0 where schoolid=@1", content, schoolid);
             }
@@ -1665,6 +1733,11 @@ namespace scoreQuery.Spider
             {
                 return;
             }
+
+            content = content.Replace("</p>", "\r\n");
+            content = content.Replace("</div>", "\r\n");
+            content = Regex.Replace(content, @"<br[^<>]*>", "\r\n");
+            //content = content.Replace("<br[^<>]*>", "\r\n");
 
             content = RegHTML.Replace(content, string.Empty).Trim();
 
@@ -1931,10 +2004,17 @@ namespace scoreQuery.Spider
             doc.LoadHtml(html);
 
             var contNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"li-majorMess\"]");
-
+            info.details = string.Empty;
             if (contNode != null)
             {
-                info.details = RegHTML.Replace(contNode.InnerHtml, string.Empty).Trim();
+                string contHtml = contNode.InnerHtml;
+                contHtml = contHtml.Replace("</p>", "\r\n");
+                contHtml = contHtml.Replace("</div>", "\r\n");
+
+                contHtml = Regex.Replace(contHtml, @"<br[^<>]*>", "\r\n");
+                
+
+                info.details = RegHTML.Replace(contHtml, string.Empty).Trim();
             }
 
 
