@@ -163,13 +163,25 @@ namespace API
 
         }
 
+
+        void SaveUserData(int uid, object obj)
+        {
+            var db = Common.DB.Factory.CreateDBHelper();
+
+            db.ExecuteNoneQuery("update [user.data] set data=@1 where id=@0", uid, JsonConvert.SerializeObject(obj));
+        }
+
+
+
         void school_score_query_json()
         {
             string province = Request.QueryString["province"] ?? string.Empty;//省份
             string kelei = Request.QueryString["kelei"] ?? string.Empty;//科类|文科理科综合
             string province_PM = Request.QueryString["province_PM"] ?? string.Empty;//排名
             string grade = Request.QueryString["grade"] ?? string.Empty;//分数
-
+            
+            int uid = int.Parse(Request.QueryString["uid"] ?? string.Empty);
+          
 
             if (!Provinces.ContainsKey(province))
             {
@@ -243,6 +255,15 @@ namespace API
                 }
             }
 
+            SaveUserData(uid, new
+            {
+                batchName,
+                batchId,
+                province,
+                kelei,
+                province_PM,
+                grade
+            });
 
             //冲刺
             string sqlwhere_cc = "and l.n_avgScore>=" + (score + 10) + " and l.n_avgScore<=" + (score + 20);
@@ -285,7 +306,7 @@ namespace API
                 for (int i = 0; i < datalist.Count; i++)
                 {
                     var item = datalist[i];
-
+                   
                     item["percent"] = ((30m - ((decimal)(Convert.ToInt32(item["score"])) - (decimal)score)) / 30m).ToString("p2");
                 }
             };
@@ -328,8 +349,8 @@ namespace API
 
             int id = 0;
 
-            object objid = db.ExecuteScalar<object>("select id from user.data where dk=@0", dk);
-            if (objid == null || objid == DBNull.Value)
+            var data = db.GetData("select id,data from [user.data] where dk=@0", dk);
+            if (data == null)
             {
                 object exo = db.ExecuteScalar<object>("insert into[user.data](dk,date) values(@0,@1);select @@IDENTITY;", dk, DateTime.Now);
 
@@ -344,12 +365,15 @@ namespace API
             }
             else
             {
-                id = Convert.ToInt32(objid);
+                id = Convert.ToInt32(data["id"]);
             }
+
+            string udata = data["data"] as string;
 
             EchoSuccJson(new
             {
-                id = id
+                id = id,
+                data = udata == null ? string.Empty : JsonConvert.DeserializeObject<dynamic>(udata)
             });
 
 
