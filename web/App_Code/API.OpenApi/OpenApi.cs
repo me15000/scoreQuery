@@ -4,6 +4,7 @@ using System.Web;
 using System.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace API
 {
@@ -74,8 +75,251 @@ namespace API
                     user_id_json();
                     break;
 
+
+                case "/school/score/query.json":
+                    school_score_query_json();
+                    break;
+
+
+
             }
         }
+
+
+        static Dictionary<string, string> ExamieeType = new Dictionary<string, string>()
+        {
+            {"文科","10034" },
+            {"理科","10035" },
+            {"综合","10090" },
+            {"艺术类","10091" },
+            {"体育类","10093" }
+        };
+
+        static Dictionary<string, string> BatchType = new Dictionary<string, string>()
+        {
+            {"一批","10036" },
+            {"二批","10037" },
+            {"三批","10038" },
+            {"专科","10148" },
+            {"提前","10149" }
+
+
+        };
+
+        static Dictionary<string, string> Provinces = new Dictionary<string, string>()
+        {
+            {"安徽","10008" },
+            {"澳门","10145" },
+            {"北京","10003" },
+            {"重庆","10028" },
+            {"福建","10024" },
+            {"甘肃","10023" },
+            {"贵州","10026" },
+            {"广东","10011" },
+            {"广西","10012" },
+            {"河北","10016" },
+            {"河南","10017" },
+            {"黑龙江","10031" },
+            {"湖北","10021" },
+            {"湖南","10022" },
+            {"海南","10019" },
+
+
+            {"江苏","10014" },
+            {"江西","10015" },
+            {"吉林","10004" },
+            {"辽宁","10027" },
+            {"内蒙古","10002" },
+            {"宁夏","10007" },
+            {"青海","10030" },
+            {"上海","10000" },
+            {"山东","10009" },
+            {"山西","10010" },
+            {"陕西","10029" },
+            {"四川","10005" },
+            {"天津","10006" },
+            {"新疆","10013" },
+            {"西藏","10025" },
+
+            {"香港","10020" },
+            {"云南","10001" },
+            {"台湾","10146" },
+            {"浙江","10018" }
+        };
+
+
+        List<Common.DB.NVCollection> GetCacheProvinceScores()
+        {
+            return Common.Helpers.CacheHelper.GetCacheObject<List<Common.DB.NVCollection>>("cache_province_scores", 3600 * 24, () =>
+            {
+
+                string sql = @"select ttb.*,(select score from [province.score] where provinceid=ttb.provinceid and [year]=ttb.[year] and batch=ttb.batch and [type]=ttb.[type] ) as score from(select MAX(tb.[year]) as [year],tb.provinceid,tb.batch,tb.[type] from (select provinceid,[year],[batch],[type] from [province.score]) as tb group by tb.provinceid,tb.batch,tb.[type]) as ttb";
+
+                var db = Common.DB.Factory.CreateDBHelper();
+
+                return db.GetDataList(sql);
+            });
+
+
+        }
+
+        void school_score_query_json()
+        {
+            string province = Request.QueryString["province"] ?? string.Empty;//省份
+            string kelei = Request.QueryString["kelei"] ?? string.Empty;//科类|文科理科综合
+            string province_PM = Request.QueryString["province_PM"] ?? string.Empty;//排名
+            string grade = Request.QueryString["grade"] ?? string.Empty;//分数
+
+
+            if (!Provinces.ContainsKey(province))
+            {
+                EchoFailJson("not exists province");
+                return;
+            }
+
+            if (!ExamieeType.ContainsKey(kelei))
+            {
+                EchoFailJson("not exists kelei");
+                return;
+            }
+
+            int score = int.Parse(grade);
+            int pm = int.Parse(province_PM);
+
+
+
+
+            var provinceScores = GetCacheProvinceScores();
+
+            var list = provinceScores.FindAll((obj) =>
+            {
+                int nowscore = Convert.ToInt32(obj["score"]);
+                return obj["provinceid"].ToString().Equals(Provinces[province])
+                && obj["type"].ToString().Equals(kelei)
+                && nowscore < score
+                && (DateTime.Now.Year - 1) == Convert.ToInt32(obj["year"]);
+            });
+
+
+
+            if (list == null)
+            {
+                EchoFailJson("nodata");
+                return;
+            }
+
+            if (list.Count == 0)
+            {
+                EchoFailJson("nodata");
+                return;
+            }
+
+
+            string batchName = null;
+            string batchId = null;
+            var ent = list.OrderByDescending(obj => Convert.ToInt32(obj["score"])).First();
+            if (ent != null)
+            {
+                string batch = ent["batch"].ToString();
+
+
+                if (batch.IndexOf("本科") >= 0)
+                {
+                    foreach (var item in BatchType)
+                    {
+                        if (batch.IndexOf(item.Key) >= 0)
+                        {
+                            batchName = batch;
+                            batchId = item.Value;
+                        }
+                    }
+                }
+
+
+                if (batch.IndexOf("专科") >= 0)
+                {
+                    batchName = "专科";
+                    batchId = BatchType["专科"];
+                }
+            }
+
+
+            //冲刺
+            string sqlwhere_cc = "and l.n_avgScore>=" + (score + 10) + " and l.n_avgScore<=" + (score + 20);
+
+            //适中
+            string sqlwhere_sz = "and l.n_avgScore>=" + (score - 10) + " and l.n_avgScore<=" + (score + 10);
+
+            //保底
+            string sqlwhere_bd = "and l.n_avgScore>=" + (score - 50) + " and l.n_avgScore<=" + (score - 10);
+
+            var db = Common.DB.Factory.CreateDBHelper();
+
+            string sqlwherebat = null;
+
+            if (string.IsNullOrEmpty(batchId))
+            {
+                sqlwherebat = " and l.batchid in('" + BatchType["一批"] + "','" + BatchType["二批"] + "','" + BatchType["提前"] + "')";
+
+            }
+            else
+            {
+                sqlwherebat = " and l.batchid ='" + batchId + "'";
+
+            }
+
+            string sql = "select d.schoolid,d.schoolname,d.province,l.provinceid,l.batchid,l.[year],l.n_avgScore as score "
+                + " from [school.data] as d left join [school.score.last] as l "
+                + " on (l.schoolid=d.schoolid)"
+                + " where l.provinceid='" + Provinces[province] + "' and l.examieeid='" + ExamieeType[kelei] + "'"
+                + sqlwherebat;
+
+            var data_cc = db.GetDataList(sql + sqlwhere_cc + " order by l.n_avgScore desc");
+            var data_sz = db.GetDataList(sql + sqlwhere_sz + " order by l.n_avgScore desc");
+            var data_bd = db.GetDataList(sql + sqlwhere_bd + " order by l.n_avgScore desc");
+
+
+            Action<List<Common.DB.NVCollection>> addField = (datalist) =>
+            {
+
+                for (int i = 0; i < datalist.Count; i++)
+                {
+                    var item = datalist[i];
+
+                    item["percent"] = ((30m - ((decimal)(Convert.ToInt32(item["score"])) - (decimal)score)) / 30m).ToString("p2");
+                }
+            };
+
+            addField(data_cc);
+            addField(data_sz);
+            addField(data_bd);
+
+            EchoSuccJson(new
+            {
+                batch = new
+                {
+                    batchName = batchName,
+                    batchId = batchId
+                },
+                list_bd = new
+                {
+                    count = data_bd.Count,
+                    data = data_bd
+                },
+                list_sz = new
+                {
+                    count = data_sz.Count,
+                    data = data_sz
+                },
+                list_cc = new
+                {
+                    count = data_cc.Count,
+                    data = data_cc
+                }
+            });
+
+        }
+
 
         void user_id_json()
         {

@@ -2012,7 +2012,7 @@ namespace scoreQuery.Spider
                 contHtml = contHtml.Replace("</div>", "\r\n");
 
                 contHtml = Regex.Replace(contHtml, @"<br[^<>]*>", "\r\n");
-                
+
 
                 info.details = RegHTML.Replace(contHtml, string.Empty).Trim();
             }
@@ -2379,6 +2379,289 @@ namespace scoreQuery.Spider
         }
     }
 
+    public class ProvinceScoreSpider
+    {
+        static Common.DB.IDBHelper db = Common.DB.Factory.CreateDBHelper();
+        static Dictionary<string, string> Provinces = new Dictionary<string, string>()
+        {
+            {"安徽","10008" },
+            {"澳门","10145" },
+            {"北京","10003" },
+            {"重庆","10028" },
+            {"福建","10024" },
+            {"甘肃","10023" },
+            {"贵州","10026" },
+            {"广东","10011" },
+            {"广西","10012" },
+            {"河北","10016" },
+            {"河南","10017" },
+            {"黑龙江","10031" },
+            {"湖北","10021" },
+            {"湖南","10022" },
+            {"海南","10019" },
+
+
+            {"江苏","10014" },
+            {"江西","10015" },
+            {"吉林","10004" },
+            {"辽宁","10027" },
+            {"内蒙古","10002" },
+            {"宁夏","10007" },
+            {"青海","10030" },
+            {"上海","10000" },
+            {"山东","10009" },
+            {"山西","10010" },
+            {"陕西","10029" },
+            {"四川","10005" },
+            {"天津","10006" },
+            {"新疆","10013" },
+            {"西藏","10025" },
+
+            {"香港","10020" },
+            {"云南","10001" },
+            {"台湾","10146" },
+            {"浙江","10018" }
+        };
+        public void Run()
+        {
+            string url = "https://data-gkcx.eol.cn/soudaxue/queryProvince.html?messtype=json&size=10&page={0}";
+
+
+
+            int page = 0;
+
+
+            bool hasNext = true;
+            do
+            {
+                page++;
+
+                string qurl = string.Format(url, page);
+
+                Console.WriteLine(qurl);
+                byte[] data = null;
+
+                int loops = 0;
+
+                loop:
+                try
+                {
+                    loops++;
+                    var wc = new WebClient();
+                    data = wc.DownloadData(qurl);
+                    wc.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+
+                    if (loops < 5)
+                    {
+                        Thread.Sleep(1000);
+                        goto loop;
+                    }
+                }
+
+                if (data == null)
+                {
+                    break;
+                }
+
+
+                string json = Encoding.GetEncoding("utf-8").GetString(data);
+
+                if (string.IsNullOrEmpty(json))
+                {
+                    break;
+                }
+
+
+                if (json.IndexOf("\"school\"") == -1)
+                {
+                    break;
+                }
+
+                dynamic dyobj = JsonConvert.DeserializeObject<dynamic>(json);
+
+
+                if (dyobj == null)
+                {
+                    break;
+                }
+
+                if (dyobj.school == null)
+                {
+                    break;
+                }
+
+
+                var list = dyobj.school;
+
+
+
+                foreach (var item in list)
+                {
+                    if (item == null)
+                    {
+                        break;
+                    }
+
+                    string province = item.province;
+                    int year = int.Parse((string)(item.year));
+                    string batch = item.bath;
+                    string type = item.type;
+                    int score = int.Parse((string)(item.score));
+
+                    if (!Provinces.ContainsKey(province))
+                    {
+                        continue;
+                    }
+
+                    var nvc = new Common.DB.NVCollection();
+                    nvc["provinceid"] = Provinces[province];
+                    nvc["year"] = year;
+                    nvc["batch"] = batch;
+                    nvc["type"] = type;
+                    nvc["score"] = score;
+
+                    string sql = "select top 1 1 from [province.score]"
+                        + " where provinceid=@provinceid and [year]=@year "
+                        + " and batch=@batch and [type]=@type ";
+
+                    int spid = 0;
+
+                    var spdata = db.GetData(sql, nvc);
+
+                    if (spdata == null)
+                    {
+
+                        object idobj = db.ExecuteScalar<object>("insert into [province.score](provinceid,[year],[batch],[type],[score])"
+                            + " values(@provinceid,@year,@batch,@type,@score)", nvc);
+
+                        if (idobj != null && idobj != DBNull.Value)
+                        {
+                            spid = Convert.ToInt32(idobj);
+
+                        }
+                    }
+                    else
+                    {
+                        db.ExecuteNoneQuery("update [province.score] set [score]=@score where provinceid=@provinceid and [year]=@year "
+                        + " and batch=@batch and [type]=@type ", nvc);
+                    }
+
+
+
+                }
+
+                if (list != null)
+                {
+                    if (list.Count == 0)
+                    {
+
+                        Console.WriteLine("complete");
+
+                        hasNext = false;
+                    }
+                }
+                else
+                {
+                    hasNext = false;
+
+                }
+
+
+
+            } while (hasNext);
+
+
+        }
+
+        void SaveSchoolScoreLast(int schoolid, string provinceid, string examieeid, string batchid, int year, int score)
+        {
+            if (score <= 0)
+            {
+                return;
+            }
+
+            var data = db.GetData("select [year],n_avgScore from [school.score.last] where schoolid=@0 and provinceid=@1 and examieeid=@2 and batchid=@3 "
+                 , schoolid
+                 , provinceid
+                 , examieeid
+                 , batchid);
+
+
+            if (data == null)
+            {
+                db.ExecuteNoneQuery("insert into [school.score.last]([schoolid],[provinceid],[examieeid],[batchid],[year],[n_avgScore]) values(@0,@1,@2,@3,@4,@5)"
+                    , schoolid, provinceid, examieeid, batchid, year, score);
+            }
+            else
+            {
+                if (Convert.ToInt32(data["year"]) < year)
+                {
+                    db.ExecuteNoneQuery("update [school.score.last] set [year]=@4,n_avgScore=@5  where schoolid=@0 and provinceid=@1 and examieeid=@2 and batchid=@3  "
+                   , schoolid
+                   , provinceid
+                   , examieeid
+                   , batchid
+                   , year
+                   , score);
+                }
+
+            }
+
+        }
+
+        public void RunSchoolScoreLast()
+        {
+
+            int previd = 0;
+
+            bool hasNext = false;
+            do
+            {
+                var list = db.GetDataList("select top 2000 [schoolid],[provinceid],[examieeid],[batchid],[year],[n_avgScore] from [school.score] where schoolid>" + previd + " order by schoolid asc");
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var ent = list[i];
+
+                    previd = Convert.ToInt32(ent["schoolid"]);
+
+                    string provinceid = (string)ent["provinceid"];
+                    string examieeid = (string)ent["examieeid"];
+                    string batchid = (string)ent["batchid"];
+                    int year = Convert.ToInt32(ent["year"]);
+
+                    int score = -1;
+                    if (ent["n_avgScore"] != null && ent["n_avgScore"] != DBNull.Value)
+                    {
+                        score = Convert.ToInt32(ent["n_avgScore"]);
+                    }
+
+                    Console.WriteLine(previd);
+
+                    SaveSchoolScoreLast(previd, provinceid, examieeid, batchid, year, score);
+                }
+
+
+                if (list.Count > 0)
+                {
+                    hasNext = true;
+                }
+                else
+                {
+                    hasNext = false;
+                }
+
+            } while (hasNext);
+
+
+
+
+        }
+    }
 
     class Program
     {
@@ -2424,6 +2707,15 @@ namespace scoreQuery.Spider
                 //抓取专业
                 case "s-s":
                     new SchoolsSpecialSpider().Run();
+                    break;
+
+                //抓取省份录取分数线
+                case "p-s":
+                    new ProvinceScoreSpider().Run();
+                    break;
+
+                case "p-s-l":
+                    new ProvinceScoreSpider().RunSchoolScoreLast();
                     break;
 
                 default:
