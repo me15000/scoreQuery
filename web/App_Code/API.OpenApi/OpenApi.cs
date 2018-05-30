@@ -91,6 +91,7 @@ namespace API
             {"文科","10034" },
             {"理科","10035" },
             {"综合","10090" },
+            {"不分科类","10090" },
             {"艺术类","10091" },
             {"体育类","10093" }
         };
@@ -179,9 +180,9 @@ namespace API
             string kelei = Request.QueryString["kelei"] ?? string.Empty;//科类|文科理科综合
             string province_PM = Request.QueryString["province_PM"] ?? string.Empty;//排名
             string grade = Request.QueryString["grade"] ?? string.Empty;//分数
-            
+
             int uid = int.Parse(Request.QueryString["uid"] ?? string.Empty);
-          
+
 
             if (!Provinces.ContainsKey(province))
             {
@@ -306,8 +307,8 @@ namespace API
                 for (int i = 0; i < datalist.Count; i++)
                 {
                     var item = datalist[i];
-                   
-                    item["percent"] = ((30m - ((decimal)(Convert.ToInt32(item["score"])) - (decimal)score)) / 30m).ToString("p2");
+
+                    item["percent"] = ((20m - ((decimal)(Convert.ToInt32(item["score"])) - (decimal)score)) / 20m).ToString("p2");
                 }
             };
 
